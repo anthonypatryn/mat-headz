@@ -39,21 +39,49 @@ function ZoneBadge({ zone }) {
   );
 }
 
-// ── Mat card ──────────────────────────────────────────────────────────────────
+// ── Mat zone strip (one slot per half-card, seams show both touching zones) ───
 
-function MatCard({ entry, isProtected, isPickable, onPick }) {
-  const zones = effectiveZones(entry.card, entry.flipped);
+function MatZoneStrip({ mat }) {
+  if (mat.length === 0) return null;
+  const slots = [];
+  mat.forEach((entry, i) => {
+    const zones = effectiveZones(entry.card, entry.flipped);
+    if (i === 0) {
+      slots.push({ key: `${entry.uid}-L`, seam: false, zone: zones.left });
+    }
+    if (i < mat.length - 1) {
+      const nextZones = effectiveZones(mat[i + 1].card, mat[i + 1].flipped);
+      slots.push({ key: `${entry.uid}-seam`, seam: true, zoneA: zones.right, zoneB: nextZones.left });
+    } else {
+      slots.push({ key: `${entry.uid}-R`, seam: false, zone: zones.right });
+    }
+  });
+  return (
+    <div className="mat-zone-strip">
+      {slots.map(s => (
+        <div key={s.key} className={`zone-slot${s.seam ? ' zone-slot--seam' : ''}`}>
+          {s.seam
+            ? <><ZoneBadge zone={s.zoneA} /><ZoneBadge zone={s.zoneB} /></>
+            : <ZoneBadge zone={s.zone} />
+          }
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Mat card image (overlaps neighbours by 50%) ───────────────────────────────
+
+function MatCardImg({ entry, index, isProtected, isPickable, onPick }) {
   return (
     <div
-      className={`mat-card${isPickable ? ' mat-card--pick' : ''}${isProtected ? ' mat-card--protected' : ''}`}
+      className={`mat-card-img${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}`}
+      style={{ zIndex: index + 1 }}
       onClick={isPickable ? () => onPick(entry.uid) : undefined}
     >
-      <div className="mat-card-zones">
-        <ZoneBadge zone={zones.left} />
-        <ZoneBadge zone={zones.right} />
-      </div>
       <CardImg card={entry.card} flipped={entry.flipped} size="md" />
-      {isProtected && <div className="mat-badge mat-badge--prot">PROTECTED</div>}
+      <div className="mat-card-num">{index + 1}</div>
+      {isProtected && <div className="mat-badge mat-badge--prot">PROT</div>}
       {isPickable && <div className="mat-badge mat-badge--pick">REMOVE</div>}
     </div>
   );
@@ -289,21 +317,29 @@ function Mat({ G, onPick }) {
   const { mat, protectedUids, matPickMode } = G;
   return (
     <div className="mat-area">
-      <div className="mat-label">THE MAT — {mat.length * 2} / 8 zones</div>
-      <div className="mat-scroll">
-        {mat.length === 0
-          ? <div className="mat-empty">Mat is empty</div>
-          : mat.map(entry => (
-            <MatCard
-              key={entry.uid}
-              entry={entry}
-              isProtected={protectedUids.includes(entry.uid)}
-              isPickable={matPickMode === 'double_leg'}
-              onPick={onPick}
-            />
-          ))
-        }
-      </div>
+      <div className="mat-label">THE MAT — {mat.length * 2} / 8 zones (ring out at 8+)</div>
+      {mat.length === 0
+        ? <div className="mat-empty">Mat is empty</div>
+        : (
+          <div className="mat-scroll-wrap">
+            <div className="mat-inner">
+              <MatZoneStrip mat={mat} />
+              <div className="mat-cards-row">
+                {mat.map((entry, i) => (
+                  <MatCardImg
+                    key={entry.uid}
+                    entry={entry}
+                    index={i}
+                    isProtected={protectedUids.includes(entry.uid)}
+                    isPickable={matPickMode === 'double_leg'}
+                    onPick={onPick}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      }
     </div>
   );
 }
@@ -341,7 +377,7 @@ function HandArea({ G, selectCard, toggleFlip, playToMat, takePoint }) {
             <button className="btn btn--place" onClick={() => playToMat('left')}>← Left End</button>
             {mat.map((entry, i) => (
               <button key={entry.uid} className="btn btn--place btn--ontop" onClick={() => playToMat(i)}>
-                On top of #{i + 1}
+                On #{i + 1}
               </button>
             ))}
             <button className="btn btn--place" onClick={() => playToMat('right')}>Right End →</button>
