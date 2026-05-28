@@ -81,13 +81,14 @@ function MatZoneStrip({ mat }) {
 
 // ── Mat card image — absolutely positioned by zoneOffset in the 8-zone grid ──
 
-function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick }) {
+function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, onPlacedMouseDown }) {
   const zo = entry.zoneOffset ?? 3;
   return (
     <div
       className={`mat-card-img${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${isPlaced ? ' mat-card-img--placed' : ''}`}
-      style={{ left: zo * 200, zIndex: index + 1 }}
+      style={{ left: zo * 200, zIndex: isPlaced ? 100 : index + 1 }}
       onClick={isPickable ? () => onPick(entry.uid) : undefined}
+      onMouseDown={isPlaced ? onPlacedMouseDown : undefined}
     >
       <CardImg card={entry.card} flipped={entry.flipped} size="md" />
       <div className="mat-card-num">{index + 1}</div>
@@ -335,7 +336,7 @@ function ActionModal({ G, resolveAction }) {
 
 // ── Mat ───────────────────────────────────────────────────────────────────────
 
-function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip }) {
+function Mat({ G, matRef, onPick, onConfirm, onFlip, onPlacedMouseDown }) {
   const { mat, protectedUids, matPickMode, matSpan, phase, pendingPlacement } = G;
   const span = matSpan ?? mat.length * 2;
   const placedUid = phase === 'placed' && pendingPlacement ? pendingPlacement.placed.uid : null;
@@ -362,6 +363,7 @@ function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip }) {
                 isPickable={matPickMode === 'double_leg'}
                 isPlaced={entry.uid === placedUid}
                 onPick={onPick}
+                onPlacedMouseDown={onPlacedMouseDown}
               />
             ))}
           </div>
@@ -371,7 +373,6 @@ function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip }) {
               className="placed-actions"
               style={{ paddingLeft: (placedEntry.zoneOffset ?? 3) * 200 }}
             >
-              <button className="btn btn--secondary" onClick={onCancel}>↩ Pick Up</button>
               <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
               <button className="btn btn--primary" onClick={onConfirm}>✓ Confirm</button>
             </div>
@@ -450,6 +451,22 @@ function GameBoard({ G, actions }) {
   const [dragState, setDragState] = useState(null);
   const matRef = useRef(null);
 
+  const handlePlacedCardMouseDown = (e) => {
+    if (phase !== 'placed' || !G.pendingPlacement) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const { placed, prevSelectedIdx } = G.pendingPlacement;
+    // Start drag with the placed card, then cancel placement (restores card to hand)
+    setDragState({
+      cardIdx: prevSelectedIdx,
+      card: placed.card,
+      flipped: placed.flipped,
+      x: e.clientX,
+      y: e.clientY,
+    });
+    cancelPlacement();
+  };
+
   const handleCardMouseDown = (cardIdx, e) => {
     if (phase !== 'playing') return;
     e.preventDefault();
@@ -527,8 +544,8 @@ function GameBoard({ G, actions }) {
         matRef={matRef}
         onPick={pickMatCard}
         onConfirm={confirmPlacement}
-        onCancel={cancelPlacement}
         onFlip={flipPlacedCard}
+        onPlacedMouseDown={handlePlacedCardMouseDown}
       />
 
       {(phase === 'playing' || phase === 'placed') && (
