@@ -353,9 +353,9 @@
   display: flex;
 }
 
-/* Each slot = half a card width (800px / 2 = 400px) */
+/* Each slot = half a card width (400px / 2 = 200px) */
 .zone-slot {
-  width: 400px;
+  width: 200px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -382,7 +382,7 @@
 .mat-card-img {
   position: relative;
   flex-shrink: 0;
-  margin-left: -400px; /* overlap by half the card width */
+  margin-left: -200px; /* overlap by half the card width */
   border-radius: 6px;
   overflow: hidden;
 }

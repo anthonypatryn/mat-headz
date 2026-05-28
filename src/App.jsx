@@ -6,7 +6,7 @@ import './App.css';
 // ── Card image ────────────────────────────────────────────────────────────────
 
 function CardImg({ card, flipped, size = 'md' }) {
-  const dims = { sm: [400, 286], md: [800, 571], lg: [800, 571] };
+  const dims = { sm: [400, 286], md: [400, 286], lg: [400, 286] };
   const [w, h] = dims[size] ?? dims.md;
   return (
     <div className="card-img-wrap" style={{ width: w, height: h }}>
