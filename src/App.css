@@ -587,12 +587,23 @@
 
 /* ── Drop zones ───────────────────────────────────────────────────────────── */
 
-/* Two stacked drop zones per side */
+/* Two stacked drop zones per side.
+   ALWAYS in the DOM (never conditionally rendered) so the browser
+   can target them when a drag starts. Hidden via opacity until active. */
 .drop-zone-stack {
   display: flex;
   flex-direction: column;
   gap: 4px;
   flex-shrink: 0;
+  width: 80px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.drop-zone-stack--active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .drop-zone {
@@ -600,7 +611,7 @@
   align-items: center;
   justify-content: center;
   width: 80px;
-  height: 141px; /* half card height so two stack = 286px */
+  height: 141px; /* half card height — two stack to 286px */
   border: 2px dashed #3a3a6a;
   border-radius: 8px;
   background: rgba(60, 60, 120, 0.15);

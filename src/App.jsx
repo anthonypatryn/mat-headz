@@ -362,54 +362,51 @@ function Mat({ G, onPick, isDragging, onDrop }) {
   return (
     <div className="mat-area">
       <div className="mat-label">THE MAT — {span} / 8 zones</div>
+      {/* Scroll wrap is ALWAYS in DOM — drop zones must exist before drag starts */}
+      <div className="mat-scroll-wrap">
+        <div className="mat-inner">
+          {mat.length > 0 && <MatZoneStrip mat={mat} />}
+          <div className="mat-drop-row">
+            {/* Left drop zones — always in DOM, shown via CSS when dragging */}
+            <div className={`drop-zone-stack${isDragging ? ' drop-zone-stack--active' : ''}`}>
+              <DropZone placement="adjacent-left" onDrop={onDrop}>
+                <span className="drop-zone-label">←| next to</span>
+              </DropZone>
+              <DropZone placement="left" onDrop={onDrop}>
+                <span className="drop-zone-label">←½ overlap</span>
+              </DropZone>
+            </div>
 
-      {mat.length === 0 && !isDragging && (
-        <div className="mat-empty">Mat is empty — drag a card here</div>
-      )}
+            <div className="mat-cards-row">
+              {mat.length === 0 && (
+                <div className="mat-empty">Mat is empty — drag a card here</div>
+              )}
+              {mat.map((entry, i) => (
+                <MatCardImg
+                  key={entry.uid}
+                  entry={entry}
+                  index={i}
+                  isProtected={protectedUids.includes(entry.uid)}
+                  isPickable={matPickMode === 'double_leg'}
+                  onPick={onPick}
+                  isDragging={isDragging}
+                  onDrop={onDrop}
+                />
+              ))}
+            </div>
 
-      {(mat.length > 0 || isDragging) && (
-        <div className="mat-scroll-wrap">
-          <div className="mat-inner">
-            {mat.length > 0 && <MatZoneStrip mat={mat} />}
-            <div className="mat-drop-row">
-              {isDragging && (
-                <div className="drop-zone-stack">
-                  <DropZone placement="adjacent-left" onDrop={onDrop}>
-                    <span className="drop-zone-label">←| next to</span>
-                  </DropZone>
-                  <DropZone placement="left" onDrop={onDrop}>
-                    <span className="drop-zone-label">←½ overlap</span>
-                  </DropZone>
-                </div>
-              )}
-              <div className="mat-cards-row">
-                {mat.map((entry, i) => (
-                  <MatCardImg
-                    key={entry.uid}
-                    entry={entry}
-                    index={i}
-                    isProtected={protectedUids.includes(entry.uid)}
-                    isPickable={matPickMode === 'double_leg'}
-                    onPick={onPick}
-                    isDragging={isDragging}
-                    onDrop={onDrop}
-                  />
-                ))}
-              </div>
-              {isDragging && (
-                <div className="drop-zone-stack">
-                  <DropZone placement="right" onDrop={onDrop}>
-                    <span className="drop-zone-label">½→ overlap</span>
-                  </DropZone>
-                  <DropZone placement="adjacent-right" onDrop={onDrop}>
-                    <span className="drop-zone-label">next to |→</span>
-                  </DropZone>
-                </div>
-              )}
+            {/* Right drop zones — always in DOM, shown via CSS when dragging */}
+            <div className={`drop-zone-stack${isDragging ? ' drop-zone-stack--active' : ''}`}>
+              <DropZone placement="right" onDrop={onDrop}>
+                <span className="drop-zone-label">½→ overlap</span>
+              </DropZone>
+              <DropZone placement="adjacent-right" onDrop={onDrop}>
+                <span className="drop-zone-label">next to |→</span>
+              </DropZone>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
