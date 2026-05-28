@@ -180,7 +180,7 @@
 
 .card-img-wrap {
   position: relative;
-  overflow: visible;  /* allow card to spin freely without a clipping frame */
+  overflow: hidden;
   border-radius: 6px;
   flex-shrink: 0;
 }
@@ -415,7 +415,7 @@
   width: 400px;
   height: 286px;
   border-radius: 6px;
-  overflow: visible;
+  overflow: hidden;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
 }
 
