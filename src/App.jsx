@@ -107,18 +107,7 @@ function MatEdgeZone({ side, isDragging, onDrop }) {
         onDrop(placement);
         setHoverMode(null);
       }}
-    >
-      <div className="mat-edge-arrow">
-        {side === 'left'
-          ? (hoverMode === 'adjacent' ? '←←' : '←')
-          : (hoverMode === 'adjacent' ? '→→' : '→')}
-      </div>
-      {hoverMode && (
-        <div className="mat-edge-label">
-          {hoverMode === 'adjacent' ? 'next to' : '½ overlap'}
-        </div>
-      )}
-    </div>
+    />
   );
 }
 
@@ -163,10 +152,24 @@ function HandCard({ card, flipped, isSelected, onSelect, onDragStart, onFlip }) 
       onDragStart={e => {
         onSelect();
         onDragStart();
-        // Replace garbage browser drag ghost with transparent 1px image
-        const ghost = new Image(1, 1);
-        ghost.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-        e.dataTransfer.setDragImage(ghost, 0, 0);
+        // Draw the card in landscape on a canvas so the drag ghost
+        // looks exactly like the card being picked up
+        const imgEl = e.currentTarget.querySelector('.card-img-wrap img');
+        if (imgEl && imgEl.complete) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 400;
+          canvas.height = 286;
+          const ctx = canvas.getContext('2d');
+          ctx.save();
+          ctx.translate(200, 143);
+          ctx.rotate(flipped ? Math.PI / 2 : -Math.PI / 2);
+          ctx.drawImage(imgEl, -143, -200, 286, 400);
+          ctx.restore();
+          canvas.style.cssText = 'position:fixed;top:-1000px;left:0;pointer-events:none';
+          document.body.appendChild(canvas);
+          e.dataTransfer.setDragImage(canvas, 200, 143);
+          setTimeout(() => document.body.contains(canvas) && document.body.removeChild(canvas), 0);
+        }
       }}
     >
       <CardImg card={card} flipped={flipped} size="sm" />
