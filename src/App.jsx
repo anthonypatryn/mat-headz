@@ -3,6 +3,34 @@ import { useGame } from './hooks/useGame';
 import { MOVESET_COLOR, TERTIARY_LABEL, TERTIARY_DESC, effectiveZones } from './data/deck';
 import './App.css';
 
+// ── Placement preview (pure — mirrors detectPair from useGame.js) ─────────────
+
+function previewPlacement(placed, newMat, placement) {
+  if (typeof placement === 'number') return null; // on-top: no pair
+  const placedZones = effectiveZones(placed.card, placed.flipped);
+  let adjacentCard = null;
+  if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
+    adjacentCard = newMat[1];
+  } else if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
+    adjacentCard = newMat[newMat.length - 2];
+  }
+  if (!adjacentCard) return null;
+  const adjZones = effectiveZones(adjacentCard.card, adjacentCard.flipped);
+  const isRight = placement === 'right' || placement === 'adjacent-right';
+  const placedZone = isRight ? placedZones.left : placedZones.right;
+  const adjZone   = isRight ? adjZones.right   : adjZones.left;
+  if (placedZone.m !== adjZone.m) return null;
+  const sidesMatch = placed.flipped !== adjacentCard.flipped;
+  return { moveset: placedZone.m, sidesMatch, pairedZone: placedZone };
+}
+
+const SECONDARY_PREVIEW = {
+  PIN:      '⚡ INSTANT WIN on Confirm!',
+  ENGAGE:   'Draw a card — take another turn',
+  TAKEDOWN: 'Take a point  or  take another turn',
+  ESCAPE:   'No effect — turn ends',
+};
+
 // ── Card image ────────────────────────────────────────────────────────────────
 
 function CardImg({ card, flipped, size = 'md' }) {
@@ -117,13 +145,122 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
   );
 }
 
+// ── Placement preview banner — shown below placed card before confirm ─────────
+
+function PlacementPreview({ preview }) {
+  const { moveset, sidesMatch, pairedZone } = preview;
+  return (
+    <div className={`placement-preview placement-preview--${moveset.toLowerCase()}`}>
+      <div className="placement-preview__row">
+        <ZoneBadge zone={pairedZone} />
+        <div className="placement-preview__text">
+          <span className="placement-preview__match">MATCH!</span>
+          <span className="placement-preview__secondary">{SECONDARY_PREVIEW[moveset]}</span>
+        </div>
+      </div>
+      {sidesMatch && pairedZone.t && (
+        <div className="placement-preview__tertiary">
+          <span className="placement-preview__tert-name">✦ {TERTIARY_LABEL[pairedZone.t]}</span>
+          <span className="placement-preview__tert-desc">{TERTIARY_DESC[pairedZone.t]}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Mat ───────────────────────────────────────────────────────────────────────
+
+function Mat({ G, matRef, onPick, onConfirm, onFlip, onPlacedMouseDown }) {
+  const { mat, protectedUids, matPickMode, matSpan, phase, pendingPlacement } = G;
+  const span = matSpan ?? mat.length * 2;
+  const placedUid = phase === 'placed' && pendingPlacement ? pendingPlacement.placed.uid : null;
+  const placedEntry = mat.find(e => e.uid === placedUid);
+
+  // Live preview of what Confirm will trigger
+  const preview = (phase === 'placed' && pendingPlacement)
+    ? previewPlacement(pendingPlacement.placed, pendingPlacement.newMat, pendingPlacement.placement)
+    : null;
+
+  return (
+    <div className="mat-area">
+      <div className="mat-label">THE MAT — {span} / 8 zones</div>
+      <div className="mat-scroll-wrap">
+        <div className="mat-grid">
+          <MatZoneStrip mat={mat} />
+          <div className="mat-cards-container" ref={matRef}>
+            {/* Faint zone dividers */}
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="mat-slot-bg" style={{ left: i * 200 }} />
+            ))}
+            {mat.length === 0 && <div className="mat-empty">Mat is empty</div>}
+            {mat.map((entry, i) => (
+              <MatCardImg
+                key={entry.uid}
+                entry={entry}
+                index={i}
+                isProtected={protectedUids.includes(entry.uid)}
+                isPickable={matPickMode === 'double_leg'}
+                isPlaced={entry.uid === placedUid}
+                onPick={onPick}
+                onPlacedMouseDown={onPlacedMouseDown}
+              />
+            ))}
+          </div>
+
+          {/* Confirm/flip buttons + live pair preview — anchored below placed card */}
+          {phase === 'placed' && placedEntry && (
+            <div className="placed-zone" style={{ paddingLeft: (placedEntry.zoneOffset ?? 3) * 200 }}>
+              <div className="placed-actions">
+                <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
+                <button className="btn btn--primary" onClick={onConfirm}>✓ Confirm</button>
+              </div>
+              {preview && <PlacementPreview preview={preview} />}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Deck pile ─────────────────────────────────────────────────────────────────
+
+function DeckPile({ count }) {
+  const w = 200, h = 143;
+  return (
+    <div className="deck-pile">
+      <div className="deck-pile__card" style={{ width: w, height: h }}>
+        {count > 2 && <div className="deck-pile__shadow deck-pile__shadow--deep" />}
+        {count > 1 && <div className="deck-pile__shadow deck-pile__shadow--mid" />}
+        <div className="deck-pile__face">
+          <img
+            src="/Cards/Back.jpg"
+            alt="Deck"
+            style={{
+              position: 'absolute',
+              width: h, height: w,
+              top: '50%', left: '50%',
+              transform: 'translate(-50%,-50%) rotate(-90deg)',
+              objectFit: 'cover',
+              userSelect: 'none',
+            }}
+          />
+        </div>
+      </div>
+      <div className="deck-pile__label">
+        <span className="deck-pile__count">{count}</span> cards left
+      </div>
+    </div>
+  );
+}
+
 // ── Hand card ─────────────────────────────────────────────────────────────────
 
-function HandCard({ card, flipped, isSelected, isDragging, onSelect, onMouseDown, onFlip }) {
+function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, onMouseDown, onFlip }) {
   const zones = effectiveZones(card, flipped);
   return (
     <div
-      className={`hand-card${isSelected ? ' hand-card--sel' : ''}${isDragging ? ' hand-card--dragging' : ''}`}
+      className={`hand-card${isSelected ? ' hand-card--sel' : ''}${isDragging ? ' hand-card--dragging' : ''}${isDrawn ? ' hand-card--drawn' : ''}`}
       onClick={onSelect}
       onMouseDown={onMouseDown}
     >
@@ -353,59 +490,10 @@ function ActionModal({ G, resolveAction }) {
   return null;
 }
 
-// ── Mat ───────────────────────────────────────────────────────────────────────
-
-function Mat({ G, matRef, onPick, onConfirm, onFlip, onPlacedMouseDown }) {
-  const { mat, protectedUids, matPickMode, matSpan, phase, pendingPlacement } = G;
-  const span = matSpan ?? mat.length * 2;
-  const placedUid = phase === 'placed' && pendingPlacement ? pendingPlacement.placed.uid : null;
-  const placedEntry = mat.find(e => e.uid === placedUid);
-
-  return (
-    <div className="mat-area">
-      <div className="mat-label">THE MAT — {span} / 8 zones</div>
-      <div className="mat-scroll-wrap">
-        <div className="mat-grid">
-          <MatZoneStrip mat={mat} />
-          <div className="mat-cards-container" ref={matRef}>
-            {/* Faint zone dividers */}
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="mat-slot-bg" style={{ left: i * 200 }} />
-            ))}
-            {mat.length === 0 && <div className="mat-empty">Mat is empty</div>}
-            {mat.map((entry, i) => (
-              <MatCardImg
-                key={entry.uid}
-                entry={entry}
-                index={i}
-                isProtected={protectedUids.includes(entry.uid)}
-                isPickable={matPickMode === 'double_leg'}
-                isPlaced={entry.uid === placedUid}
-                onPick={onPick}
-                onPlacedMouseDown={onPlacedMouseDown}
-              />
-            ))}
-          </div>
-          {/* Confirm/flip/cancel buttons — appear directly below the placed card */}
-          {phase === 'placed' && placedEntry && (
-            <div
-              className="placed-actions"
-              style={{ paddingLeft: (placedEntry.zoneOffset ?? 3) * 200 }}
-            >
-              <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
-              <button className="btn btn--primary" onClick={onConfirm}>✓ Confirm</button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Hand area ─────────────────────────────────────────────────────────────────
 
-function HandArea({ G, selectCard, toggleFlip, takePoint, onCardMouseDown, dragCardIdx, disabled }) {
-  const { players, currentPlayer, selectedIdx, flipped } = G;
+function HandArea({ G, selectCard, toggleFlip, takePoint, onCardMouseDown, dragCardIdx, drawnCardIdx, disabled }) {
+  const { players, currentPlayer, selectedIdx, flipped, deck } = G;
   const p = players[currentPlayer];
   const hasSelected = selectedIdx !== null;
 
@@ -415,27 +503,32 @@ function HandArea({ G, selectCard, toggleFlip, takePoint, onCardMouseDown, dragC
         {p.name}'s Hand
         {!disabled && p.hand.length > 0 && <span className="hand-hint-inline"> — tap to select, drag to place</span>}
       </div>
-      <div className="hand-cards">
-        {p.hand.length === 0 && <div className="hand-empty">No cards in hand</div>}
-        {p.hand.map((card, i) => (
-          <HandCard
-            key={i}
-            card={card}
-            flipped={i === selectedIdx ? flipped : false}
-            isSelected={i === selectedIdx}
-            isDragging={dragCardIdx === i}
-            onSelect={() => selectCard(i)}
-            onMouseDown={disabled ? undefined : (e) => onCardMouseDown(i, e)}
-            onFlip={toggleFlip}
-          />
-        ))}
+      <div className="hand-play-zone">
+        <DeckPile count={deck.length} />
+        <div className="hand-cards-col">
+          <div className="hand-cards">
+            {p.hand.length === 0 && <div className="hand-empty">No cards in hand</div>}
+            {p.hand.map((card, i) => (
+              <HandCard
+                key={i}
+                card={card}
+                flipped={i === selectedIdx ? flipped : false}
+                isSelected={i === selectedIdx}
+                isDragging={dragCardIdx === i}
+                isDrawn={i === drawnCardIdx}
+                onSelect={() => selectCard(i)}
+                onMouseDown={disabled ? undefined : (e) => onCardMouseDown(i, e)}
+                onFlip={toggleFlip}
+              />
+            ))}
+          </div>
+          {hasSelected && !disabled && (
+            <button className="btn btn--point" onClick={takePoint}>
+              Discard for Point
+            </button>
+          )}
+        </div>
       </div>
-
-      {hasSelected && !disabled && (
-        <button className="btn btn--point" onClick={takePoint}>
-          Discard for Point
-        </button>
-      )}
     </div>
   );
 }
@@ -469,6 +562,21 @@ function GameBoard({ G, actions }) {
   const { phase, matPickMode, message, currentPlayer, players, flags, mat } = G;
   const [dragState, setDragState] = useState(null);
   const matRef = useRef(null);
+
+  // ── Draw animation: fire when phase transitions to 'playing' ─────────────
+  const prevPhaseRef = useRef(G.phase);
+  const [drawnCardIdx, setDrawnCardIdx] = useState(null);
+
+  useEffect(() => {
+    const prev = prevPhaseRef.current;
+    prevPhaseRef.current = G.phase;
+    if (G.phase === 'playing' && prev !== 'playing') {
+      const hand = G.players[G.currentPlayer].hand;
+      setDrawnCardIdx(hand.length - 1);
+      const t = setTimeout(() => setDrawnCardIdx(null), 700);
+      return () => clearTimeout(t);
+    }
+  }, [G.phase, G.currentPlayer]);
 
   const handlePlacedCardMouseDown = (e) => {
     if (phase !== 'placed' || !G.pendingPlacement) return;
@@ -523,7 +631,7 @@ function GameBoard({ G, actions }) {
         if (mat.length === 0) {
           placement = 'right';
         } else {
-          const leftZone = mat[0].zoneOffset ?? 3;
+          const leftZone  = mat[0].zoneOffset ?? 3;
           const rightZone = mat[mat.length - 1].zoneOffset ?? 3;
 
           if (targetZone === leftZone - 1)       placement = 'left';
@@ -581,6 +689,7 @@ function GameBoard({ G, actions }) {
             takePoint={phase === 'playing' ? takePoint : () => {}}
             onCardMouseDown={handleCardMouseDown}
             dragCardIdx={dragState?.cardIdx ?? null}
+            drawnCardIdx={drawnCardIdx}
             disabled={phase === 'placed'}
           />
         </>

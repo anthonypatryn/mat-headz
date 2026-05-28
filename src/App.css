@@ -513,6 +513,57 @@
   font-size: 12px;
 }
 
+/* ── Deck pile ────────────────────────────────────────────────────────────── */
+
+.deck-pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.deck-pile__card {
+  position: relative;
+}
+
+.deck-pile__shadow {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.deck-pile__shadow--deep {
+  transform: translate(6px, 5px);
+}
+
+.deck-pile__shadow--mid {
+  transform: translate(3px, 3px);
+}
+
+.deck-pile__face {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.deck-pile__label {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.deck-pile__count {
+  font-weight: 800;
+  color: var(--text);
+}
+
 /* ── Hand area ────────────────────────────────────────────────────────────── */
 
 .hand-area {
@@ -533,10 +584,27 @@
   color: var(--text-dim);
 }
 
+/* Deck pile + cards side by side */
+.hand-play-zone {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* Column that holds the hand-cards grid + discard button, centered */
+.hand-cards-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
 .hand-cards {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .hand-empty {
@@ -625,12 +693,110 @@
   font-size: 20px;
 }
 
-/* ── Placed card actions — appear below the placed card inside the mat grid ── */
+/* ── Placed zone — wraps buttons + preview, anchored below placed card ───────── */
+
+.placed-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+/* ── Placed card action buttons (Flip + Confirm) ──────────────────────────── */
 
 .placed-actions {
   display: flex;
   gap: 8px;
-  padding-top: 10px;
+}
+
+/* ── Placement preview — shows what Confirm will trigger ─────────────────── */
+
+.placement-preview {
+  border-radius: 8px;
+  padding: 10px 14px;
+  border: 1px solid;
+  max-width: 440px;
+  animation: preview-in 0.2s ease;
+}
+
+@keyframes preview-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.placement-preview--pin {
+  background: rgba(192, 57, 43, 0.18);
+  border-color: #c0392b;
+}
+
+.placement-preview--engage {
+  background: rgba(39, 174, 96, 0.12);
+  border-color: #27ae60;
+}
+
+.placement-preview--takedown {
+  background: rgba(26, 82, 118, 0.18);
+  border-color: #1a5276;
+}
+
+.placement-preview--escape {
+  background: rgba(44, 62, 80, 0.15);
+  border-color: #4a5568;
+}
+
+.placement-preview__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.placement-preview__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.placement-preview__match {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1;
+}
+
+.placement-preview__secondary {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.placement-preview--pin .placement-preview__secondary {
+  color: #ff6b6b;
+  font-size: 15px;
+}
+
+.placement-preview__tertiary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.placement-preview__tert-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.placement-preview__tert-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
 }
 
 /* ── Drag floating card — follows cursor, pointer-events: none ───────────── */
@@ -654,6 +820,30 @@
 
 .hand-card--dragging {
   opacity: 0.3;
+}
+
+/* ── Newly drawn card slides in from the deck ────────────────────────────── */
+
+@keyframes card-deal {
+  0% {
+    transform: translateX(-70px) translateY(-20px) scale(0.75);
+    opacity: 0;
+    filter: brightness(1.4);
+  }
+  60% {
+    transform: translateX(3px) translateY(-3px) scale(1.03);
+    opacity: 1;
+    filter: brightness(1.1);
+  }
+  100% {
+    transform: translateX(0) translateY(0) scale(1);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+.hand-card--drawn {
+  animation: card-deal 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ── Disabled hand (during placement confirmation) ────────────────────────── */
