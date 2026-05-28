@@ -363,6 +363,7 @@
 
 .mat-zone-strip {
   display: flex;
+  margin-left: calc(80px + 6px); /* align with mat-cards-row: drop-zone-stack width + gap */
 }
 
 /* Each slot = half a card width (400px / 2 = 200px) */
