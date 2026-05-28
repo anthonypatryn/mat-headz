@@ -352,42 +352,44 @@ function Mat({ G, onPick, isDragging, onDrop }) {
   return (
     <div className="mat-area">
       <div className="mat-label">THE MAT — {mat.length * 2} / 8 zones (ring out at 8+)</div>
-      <div className="mat-row-wrap">
-        {isDragging && (
-          <DropZone placement="left" onDrop={onDrop}>
-            <span className="drop-zone-label">← Left</span>
-          </DropZone>
-        )}
-        {mat.length === 0 && !isDragging
-          ? <div className="mat-empty">Mat is empty</div>
-          : mat.length > 0 && (
-            <div className="mat-scroll-wrap">
-              <div className="mat-inner">
-                <MatZoneStrip mat={mat} />
-                <div className="mat-cards-row">
-                  {mat.map((entry, i) => (
-                    <MatCardImg
-                      key={entry.uid}
-                      entry={entry}
-                      index={i}
-                      isProtected={protectedUids.includes(entry.uid)}
-                      isPickable={matPickMode === 'double_leg'}
-                      onPick={onPick}
-                      isDragging={isDragging}
-                      onDrop={onDrop}
-                    />
-                  ))}
-                </div>
+
+      {mat.length === 0 && !isDragging && (
+        <div className="mat-empty">Mat is empty — drag a card here</div>
+      )}
+
+      {(mat.length > 0 || isDragging) && (
+        <div className="mat-scroll-wrap">
+          <div className="mat-inner">
+            {mat.length > 0 && <MatZoneStrip mat={mat} />}
+            <div className="mat-drop-row">
+              {isDragging && (
+                <DropZone placement="left" onDrop={onDrop}>
+                  <span className="drop-zone-label">←</span>
+                </DropZone>
+              )}
+              <div className="mat-cards-row">
+                {mat.map((entry, i) => (
+                  <MatCardImg
+                    key={entry.uid}
+                    entry={entry}
+                    index={i}
+                    isProtected={protectedUids.includes(entry.uid)}
+                    isPickable={matPickMode === 'double_leg'}
+                    onPick={onPick}
+                    isDragging={isDragging}
+                    onDrop={onDrop}
+                  />
+                ))}
               </div>
+              {isDragging && (
+                <DropZone placement="right" onDrop={onDrop}>
+                  <span className="drop-zone-label">→</span>
+                </DropZone>
+              )}
             </div>
-          )
-        }
-        {isDragging && (
-          <DropZone placement="right" onDrop={onDrop}>
-            <span className="drop-zone-label">Right →</span>
-          </DropZone>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
