@@ -175,11 +175,11 @@ export function useGame() {
           discard: [...discard, ...newMat.map(p2 => p2.card), card],
           selectedIdx: null,
           flipped: false,
-          phase: 'pass',
+          phase: 'resolve',
           currentPlayer: 1 - currentPlayer,
           flags: resetFlags(flags),
           message: `RING OUT! ${p.name} cleared the mat. ${players[1 - currentPlayer].name} goes next.`,
-          pending: { type: 'RINGOUT_MSG', triggeredBy: currentPlayer },
+          pending: null,
         };
       }
 
@@ -687,7 +687,7 @@ export function useGame() {
       const newNextPlayer = 1 - nextPlayer;
       return {
         ...state,
-        phase: 'pass',
+        phase: 'resolve',
         currentPlayer: newNextPlayer,
         flags: resetFlags(flags),
         selectedIdx: null,
@@ -697,13 +697,17 @@ export function useGame() {
     }
     return {
       ...state,
-      phase: 'pass',
+      phase: 'resolve',
       currentPlayer: nextPlayer,
       flags: resetFlags(flags),
       selectedIdx: null,
       flipped: false,
       message: '',
     };
+  }
+
+  function confirmTurn() {
+    setG(prev => ({ ...prev, phase: 'pass' }));
   }
 
   function endOrContinue(state) {
@@ -771,6 +775,7 @@ export function useGame() {
     G,
     initGame,
     startTurn,
+    confirmTurn,
     selectCard,
     toggleFlip,
     playToMat,

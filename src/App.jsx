@@ -20,6 +20,7 @@ function CardImg({ card, flipped, size = 'md' }) {
           top: '50%',
           left: '50%',
           transform: `translate(-50%,-50%) rotate(${flipped ? 90 : -90}deg)`,
+          transition: 'transform 0.35s ease',
           objectFit: 'cover',
           userSelect: 'none',
         }}
@@ -453,7 +454,7 @@ function ScoreHeader({ G }) {
 // ── Game board ────────────────────────────────────────────────────────────────
 
 function GameBoard({ G, actions }) {
-  const { selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard } = actions;
+  const { selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn } = actions;
   const { phase, matPickMode, message, currentPlayer, players, flags } = G;
   const [isDragging, setIsDragging] = useState(false);
 
@@ -497,6 +498,15 @@ function GameBoard({ G, actions }) {
       )}
 
       {phase === 'action' && <ActionModal G={G} resolveAction={resolveAction} />}
+
+      {phase === 'resolve' && (
+        <div className="confirm-bar">
+          {G.message && <div className="confirm-msg">{G.message}</div>}
+          <button className="btn btn--primary btn--lg" onClick={confirmTurn}>
+            End Turn
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -553,7 +563,7 @@ function GameOver({ G, onNewGame }) {
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { G, initGame, startTurn, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
+  const { G, initGame, startTurn, confirmTurn, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
   const { phase, players, currentPlayer } = G;
 
   // Auto-init on mount — skip name entry screen
@@ -579,7 +589,7 @@ export default function App() {
   return (
     <GameBoard
       G={G}
-      actions={{ selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard }}
+      actions={{ selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn }}
     />
   );
 }
