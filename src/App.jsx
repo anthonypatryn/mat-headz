@@ -47,12 +47,21 @@ function MatZoneStrip({ mat }) {
   const slots = [];
   mat.forEach((entry, i) => {
     const zones = effectiveZones(entry.card, entry.flipped);
+    // Always show the left zone of the first card
     if (i === 0) {
       slots.push({ key: `${entry.uid}-L`, seam: false, zone: zones.left });
     }
     if (i < mat.length - 1) {
-      const nextZones = effectiveZones(mat[i + 1].card, mat[i + 1].flipped);
-      slots.push({ key: `${entry.uid}-seam`, seam: true, zoneA: zones.right, zoneB: nextZones.left });
+      const nextEntry = mat[i + 1];
+      const nextZones = effectiveZones(nextEntry.card, nextEntry.flipped);
+      if (nextEntry.adjacent) {
+        // Adjacent (no overlap): two separate zone slots, one per card
+        slots.push({ key: `${entry.uid}-R`, seam: false, zone: zones.right });
+        slots.push({ key: `${nextEntry.uid}-L`, seam: false, zone: nextZones.left });
+      } else {
+        // 50% overlap: combined seam slot showing both touching zones
+        slots.push({ key: `${entry.uid}-seam`, seam: true, zoneA: zones.right, zoneB: nextZones.left });
+      }
     } else {
       slots.push({ key: `${entry.uid}-R`, seam: false, zone: zones.right });
     }
@@ -93,7 +102,7 @@ function MatCardImg({ entry, index, isProtected, isPickable, onPick, isDragging,
   const [over, setOver] = useState(false);
   return (
     <div
-      className={`mat-card-img${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${over && isDragging ? ' mat-card-img--over' : ''}`}
+      className={`mat-card-img${entry.adjacent ? ' mat-card-img--adjacent' : ''}${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${over && isDragging ? ' mat-card-img--over' : ''}`}
       style={{ zIndex: index + 1 }}
       onClick={isPickable ? () => onPick(entry.uid) : undefined}
       onDragOver={isDragging ? e => { e.preventDefault(); setOver(true); } : undefined}
@@ -348,10 +357,11 @@ function ActionModal({ G, resolveAction }) {
 // ── Mat ───────────────────────────────────────────────────────────────────────
 
 function Mat({ G, onPick, isDragging, onDrop }) {
-  const { mat, protectedUids, matPickMode } = G;
+  const { mat, protectedUids, matPickMode, matSpan } = G;
+  const span = matSpan ?? mat.length * 2;
   return (
     <div className="mat-area">
-      <div className="mat-label">THE MAT — {mat.length * 2} / 8 zones (ring out at 8+)</div>
+      <div className="mat-label">THE MAT — {span} / 8 zones</div>
 
       {mat.length === 0 && !isDragging && (
         <div className="mat-empty">Mat is empty — drag a card here</div>
@@ -363,9 +373,14 @@ function Mat({ G, onPick, isDragging, onDrop }) {
             {mat.length > 0 && <MatZoneStrip mat={mat} />}
             <div className="mat-drop-row">
               {isDragging && (
-                <DropZone placement="left" onDrop={onDrop}>
-                  <span className="drop-zone-label">←</span>
-                </DropZone>
+                <div className="drop-zone-stack">
+                  <DropZone placement="adjacent-left" onDrop={onDrop}>
+                    <span className="drop-zone-label">←| next to</span>
+                  </DropZone>
+                  <DropZone placement="left" onDrop={onDrop}>
+                    <span className="drop-zone-label">←½ overlap</span>
+                  </DropZone>
+                </div>
               )}
               <div className="mat-cards-row">
                 {mat.map((entry, i) => (
@@ -382,9 +397,14 @@ function Mat({ G, onPick, isDragging, onDrop }) {
                 ))}
               </div>
               {isDragging && (
-                <DropZone placement="right" onDrop={onDrop}>
-                  <span className="drop-zone-label">→</span>
-                </DropZone>
+                <div className="drop-zone-stack">
+                  <DropZone placement="right" onDrop={onDrop}>
+                    <span className="drop-zone-label">½→ overlap</span>
+                  </DropZone>
+                  <DropZone placement="adjacent-right" onDrop={onDrop}>
+                    <span className="drop-zone-label">next to |→</span>
+                  </DropZone>
+                </div>
               )}
             </div>
           </div>

@@ -405,6 +405,11 @@
   margin-left: 0;
 }
 
+/* Adjacent placement — no overlap with left neighbour */
+.mat-card-img--adjacent {
+  margin-left: 0;
+}
+
 .mat-card-img--pick {
   cursor: pointer;
 }
@@ -582,12 +587,20 @@
 
 /* ── Drop zones ───────────────────────────────────────────────────────────── */
 
+/* Two stacked drop zones per side */
+.drop-zone-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .drop-zone {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 80px;
-  height: 286px;
+  height: 141px; /* half card height so two stack = 286px */
   border: 2px dashed #3a3a6a;
   border-radius: 8px;
   background: rgba(60, 60, 120, 0.15);

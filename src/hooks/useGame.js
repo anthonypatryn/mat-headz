@@ -16,7 +16,8 @@ function fresh() {
     round: 1,
     deck: [],
     discard: [],
-    mat: [],                // [{ uid, card, flipped }]  — leftmost = index 0
+    mat: [],                // [{ uid, card, flipped, adjacent }]  — leftmost = index 0
+    matSpan: 0,             // current mat width in half-card units (each card = 2, each overlap saves 1)
     protectedUids: [],      // uids that cannot be covered (Double Leg Takedown)
     flags: {
       hasEngaged: false,    // Engage pair triggered this turn chain
@@ -57,7 +58,8 @@ export function useGame() {
       currentPlayer: 0,
       round: 1,
       deck,
-      mat: [{ uid: uid(), card: startCard, flipped: false }],
+      mat: [{ uid: uid(), card: startCard, flipped: false, adjacent: false }],
+      matSpan: 2,
       message: '',
     });
   }
@@ -135,9 +137,12 @@ export function useGame() {
   // ─── PLAY TO MAT ──────────────────────────────────────────────────────────
 
   function playToMat(placement) {
-    // placement: 'left' | 'right' | index (on top of existing)
+    // placement: 'left'|'adjacent-left'|'right'|'adjacent-right' | index (on top)
+    // 'left'/'right'       = 50% overlap with end card  → span +1
+    // 'adjacent-left/right = placed directly next to end → span +2
+    // number               = on top of existing card     → span unchanged
     setG(prev => {
-      const { players, currentPlayer, selectedIdx, flipped, mat, flags, deck, discard, protectedUids } = prev;
+      const { players, currentPlayer, selectedIdx, flipped, mat, flags, deck, discard, protectedUids, matSpan } = prev;
       if (selectedIdx === null) return prev;
 
       const p = players[currentPlayer];
@@ -148,30 +153,49 @@ export function useGame() {
       );
 
       let newMat = [...mat];
-      const placed = { uid: uid(), card, flipped };
+      let spanIncrease = 0;
+      const placed = { uid: uid(), card, flipped, adjacent: false };
 
-      // Place on top of existing card
       if (typeof placement === 'number') {
-        // Cannot place on a protected card
+        // On top of existing card — span unchanged
         if (protectedUids.includes(mat[placement].uid)) {
           return { ...prev, message: 'That card is protected — it cannot be covered!' };
         }
-        // Replace: keep position, stack. We just replace the top card with the new one.
-        newMat = mat.map((pos, i) => i === placement ? placed : pos);
-      } else if (placement === 'left') {
-        newMat = [placed, ...mat];
-      } else {
-        newMat = [...mat, placed];
+        newMat = mat.map((pos, i) => i === placement ? { ...placed, adjacent: pos.adjacent } : pos);
+        spanIncrease = 0;
+
+      } else if (placement === 'left' || placement === 'adjacent-left') {
+        const isAdj = placement === 'adjacent-left';
+        if (mat.length === 0) {
+          newMat = [placed];
+          spanIncrease = 2;
+        } else {
+          // Update old first card's adjacent flag to reflect its new left neighbour
+          const updatedFirst = { ...mat[0], adjacent: isAdj };
+          newMat = [placed, updatedFirst, ...mat.slice(1)];
+          spanIncrease = isAdj ? 2 : 1;
+        }
+
+      } else { // 'right' or 'adjacent-right'
+        const isAdj = placement === 'adjacent-right';
+        if (mat.length === 0) {
+          newMat = [placed];
+          spanIncrease = 2;
+        } else {
+          newMat = [...mat, { ...placed, adjacent: isAdj }];
+          spanIncrease = isAdj ? 2 : 1;
+        }
       }
 
-      // Zone count check — ring out
-      const zoneCount = newMat.length * 2;
-      if (zoneCount >= 8) {
-        // Ring out — triggered by current player; other player goes next
+      const newSpan = (matSpan || 0) + spanIncrease;
+
+      // Ring out — card would push mat beyond 8 half-card zones
+      if (newSpan > 8) {
         return {
           ...prev,
           players: newPlayers,
           mat: [],
+          matSpan: 0,
           discard: [...discard, ...newMat.map(p2 => p2.card), card],
           selectedIdx: null,
           flipped: false,
@@ -183,7 +207,7 @@ export function useGame() {
         };
       }
 
-      // Pair detection
+      // Pair detection (only for end placements, not on-top)
       let pair = null;
       if (typeof placement !== 'number') {
         pair = detectPair(placed, newMat, placement);
@@ -194,6 +218,7 @@ export function useGame() {
           ...prev,
           players: newPlayers,
           mat: newMat,
+          matSpan: newSpan,
           selectedIdx: null,
           flipped: false,
         });
@@ -208,6 +233,7 @@ export function useGame() {
           ...prev,
           players: newPlayers,
           mat: newMat,
+          matSpan: newSpan,
           phase: 'gameOver',
           pending: null,
           message: `${p.name} made a PIN — INSTANT WIN!`,
@@ -217,11 +243,11 @@ export function useGame() {
 
       // Engage special rule: can't chain Engage on a bonus turn
       if (moveset === 'ENGAGE' && flags.hasEngaged) {
-        // Pair happened but no secondary triggered
         return endOrContinue({
           ...prev,
           players: newPlayers,
           mat: newMat,
+          matSpan: newSpan,
           selectedIdx: null,
           flipped: false,
           message: 'Engage pair — but you already Engaged this turn. No bonus.',
@@ -239,6 +265,7 @@ export function useGame() {
         ...prev,
         players: newPlayers,
         mat: newMat,
+        matSpan: newSpan,
         selectedIdx: null,
         flipped: false,
         phase: 'action',
@@ -257,14 +284,12 @@ export function useGame() {
     let adjacentCard = null;
     let placedSide = null; // which zone of placed card is touching
 
-    if (placement === 'left' && newMat.length >= 2) {
-      // placed is at index 0, neighbour is index 1
+    if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
       adjacentCard = newMat[1];
-      placedSide = 'right'; // placed card's right zone touches neighbour's left zone
-    } else if (placement === 'right' && newMat.length >= 2) {
-      // placed is at last index, neighbour is second-to-last
+      placedSide = 'right';
+    } else if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
       adjacentCard = newMat[newMat.length - 2];
-      placedSide = 'left'; // placed card's left zone touches neighbour's right zone
+      placedSide = 'left';
     }
 
     if (!adjacentCard) return null;
@@ -749,7 +774,8 @@ export function useGame() {
         round: prev.round + 1,
         deck,
         discard: [],
-        mat: [{ uid: uid(), card: startCard, flipped: false }],
+        mat: [{ uid: uid(), card: startCard, flipped: false, adjacent: false }],
+        matSpan: 2,
         protectedUids: [],
         currentPlayer: 0,
         players: prev.players.map((p, i) => ({
