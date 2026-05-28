@@ -59,7 +59,7 @@ export function useGame() {
       currentPlayer: 0,
       round: 1,
       deck,
-      mat: [{ uid: uid(), card: startCard, flipped: false, adjacent: false }],
+      mat: [{ uid: uid(), card: startCard, flipped: false, adjacent: false, zoneOffset: 3 }],
       matSpan: 2,
       message: '',
     });
@@ -155,7 +155,23 @@ export function useGame() {
 
       let newMat = [...mat];
       let spanIncrease = 0;
-      const placed = { uid: uid(), card, flipped, adjacent: false };
+
+      // Compute absolute zone offset (0-indexed in 8-zone grid)
+      let placedZoneOffset = 3;
+      if (mat.length > 0) {
+        if (typeof placement === 'number') {
+          placedZoneOffset = mat[placement]?.zoneOffset ?? 3;
+        } else if (placement === 'left') {
+          placedZoneOffset = (mat[0]?.zoneOffset ?? 4) - 1;
+        } else if (placement === 'adjacent-left') {
+          placedZoneOffset = (mat[0]?.zoneOffset ?? 5) - 2;
+        } else if (placement === 'right') {
+          placedZoneOffset = (mat[mat.length - 1]?.zoneOffset ?? 2) + 1;
+        } else if (placement === 'adjacent-right') {
+          placedZoneOffset = (mat[mat.length - 1]?.zoneOffset ?? 1) + 2;
+        }
+      }
+      const placed = { uid: uid(), card, flipped, adjacent: false, zoneOffset: placedZoneOffset };
 
       if (typeof placement === 'number') {
         // On top of existing card — span unchanged
@@ -832,7 +848,7 @@ export function useGame() {
         round: prev.round + 1,
         deck,
         discard: [],
-        mat: [{ uid: uid(), card: startCard, flipped: false, adjacent: false }],
+        mat: [{ uid: uid(), card: startCard, flipped: false, adjacent: false, zoneOffset: 3 }],
         matSpan: 2,
         protectedUids: [],
         currentPlayer: 0,

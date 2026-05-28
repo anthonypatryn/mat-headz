@@ -121,6 +121,16 @@
   border-color: #5a5a8a;
 }
 
+.btn--outline {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.btn--outline:hover {
+  background: rgba(232, 200, 74, 0.1);
+}
+
 .btn--flip {
   background: #1a2a4a;
   color: #7ec8ff;
@@ -326,7 +336,8 @@
   text-align: center;
 }
 
-/* Scroll wrapper — max-width so it doesn't overflow the page */
+/* ── Mat scroll wrapper ───────────────────────────────────────────────────── */
+
 .mat-scroll-wrap {
   max-width: 100%;
   overflow-x: auto;
@@ -335,80 +346,64 @@
   scrollbar-color: var(--border) transparent;
 }
 
-.mat-scroll-wrap::-webkit-scrollbar {
-  height: 4px;
-}
+.mat-scroll-wrap::-webkit-scrollbar { height: 4px; }
+.mat-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-.mat-scroll-wrap::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
-}
+/* ── Mat grid — fixed 8-zone (1600px) layout ─────────────────────────────── */
 
-/* Inner block grows to fit content; zone strip and drop row scroll together */
-.mat-inner {
-  display: inline-flex;
+.mat-grid {
+  width: 1600px;
+  display: flex;
   flex-direction: column;
   gap: 4px;
   padding-bottom: 4px;
 }
 
-/* Drop row: left drop zone + cards + right drop zone, all in the scroll area */
-.mat-drop-row {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-}
-
 /* ── Zone strip ───────────────────────────────────────────────────────────── */
 
 .mat-zone-strip {
-  display: flex;
-  margin-left: calc(400px + 6px); /* align with mat-cards-row: edge-zone width + gap */
+  position: relative;
+  width: 1600px;
+  height: 36px;
 }
 
-/* Each slot = half a card width (400px / 2 = 200px) */
 .zone-slot {
+  position: absolute;
   width: 200px;
-  flex-shrink: 0;
+  height: 100%;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Seam slot shows two zones side-by-side (right of left card / left of right card) */
-.zone-slot--seam {
-  flex-direction: row;
-  gap: 1px;
+/* ── Cards container — cards are absolutely positioned by zoneOffset ─────── */
+
+.mat-cards-container {
+  position: relative;
+  width: 1600px;
+  height: 286px;
+  background: var(--bg3);
+  border-radius: 8px;
+  overflow: visible;
 }
 
-.zone-slot--seam .zone-badge {
-  flex: 1;
-  min-width: 0;
-}
-
-/* ── Overlapping card images ──────────────────────────────────────────────── */
-
-.mat-cards-row {
-  display: flex;
+/* Faint zone divider lines */
+.mat-slot-bg {
+  position: absolute;
+  top: 0;
+  width: 200px;
+  height: 100%;
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  pointer-events: none;
 }
 
 .mat-card-img {
-  position: relative;
-  flex-shrink: 0;
+  position: absolute;
+  top: 0;
   width: 400px;
   height: 286px;
-  margin-left: -200px; /* overlap by half the card width */
   border-radius: 6px;
   overflow: hidden;
-}
-
-.mat-card-img:first-child {
-  margin-left: 0;
-}
-
-/* Adjacent placement — no overlap with left neighbour */
-.mat-card-img--adjacent {
-  margin-left: 0;
 }
 
 .mat-card-img--placed {
@@ -607,38 +602,35 @@
   font-size: 20px;
 }
 
-/* ── Mat edge zones (invisible drop targets, one per side) ──────────────── */
+/* ── Placed card actions — appear below the placed card inside the mat grid ── */
 
-/* ALWAYS in the DOM — browser must see them before drag starts. */
-.mat-edge-zone {
+.placed-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+/* ── Drag floating card — follows cursor, pointer-events: none ───────────── */
+
+.drag-float {
+  position: fixed;
   width: 400px;
   height: 286px;
-  flex-shrink: 0;
   pointer-events: none;
+  z-index: 9999;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.7));
 }
 
-.mat-edge-zone--active {
-  pointer-events: auto;
+/* ── Prevent text selection while dragging ───────────────────────────────── */
+
+.game-board--dragging {
+  user-select: none;
 }
 
-.mat-card-img--over {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+/* ── Dragged hand card becomes transparent ghost ─────────────────────────── */
 
-.mat-drop-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(232, 200, 74, 0.25);
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  border-radius: 6px;
-  pointer-events: none;
+.hand-card--dragging {
+  opacity: 0.3;
 }
 
 /* ── Disabled hand (during placement confirmation) ────────────────────────── */
