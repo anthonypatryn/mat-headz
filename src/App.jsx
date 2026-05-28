@@ -70,34 +70,67 @@ function MatZoneStrip({ mat }) {
   );
 }
 
-// ── Mat card image (overlaps neighbours by 50%) ───────────────────────────────
+// ── Drop zone (appears on mat during drag) ────────────────────────────────────
 
-function MatCardImg({ entry, index, isProtected, isPickable, onPick }) {
+function DropZone({ placement, onDrop, children }) {
+  const [over, setOver] = useState(false);
   return (
     <div
-      className={`mat-card-img${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}`}
+      className={`drop-zone${over ? ' drop-zone--over' : ''}`}
+      onDragOver={e => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={e => { e.preventDefault(); setOver(false); onDrop(placement); }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── Mat card image (overlaps neighbours by 50%) ───────────────────────────────
+
+function MatCardImg({ entry, index, isProtected, isPickable, onPick, isDragging, onDrop }) {
+  const [over, setOver] = useState(false);
+  return (
+    <div
+      className={`mat-card-img${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${over && isDragging ? ' mat-card-img--over' : ''}`}
       style={{ zIndex: index + 1 }}
       onClick={isPickable ? () => onPick(entry.uid) : undefined}
+      onDragOver={isDragging ? e => { e.preventDefault(); setOver(true); } : undefined}
+      onDragLeave={isDragging ? () => setOver(false) : undefined}
+      onDrop={isDragging ? e => { e.preventDefault(); setOver(false); onDrop(index); } : undefined}
     >
       <CardImg card={entry.card} flipped={entry.flipped} size="md" />
       <div className="mat-card-num">{index + 1}</div>
       {isProtected && <div className="mat-badge mat-badge--prot">PROT</div>}
       {isPickable && <div className="mat-badge mat-badge--pick">REMOVE</div>}
+      {over && isDragging && <div className="mat-drop-label">Place on top</div>}
     </div>
   );
 }
 
 // ── Hand card ─────────────────────────────────────────────────────────────────
 
-function HandCard({ card, flipped, isSelected, onClick }) {
+function HandCard({ card, flipped, isSelected, onSelect, onDragStart, onFlip }) {
   const zones = effectiveZones(card, flipped);
   return (
-    <div className={`hand-card${isSelected ? ' hand-card--sel' : ''}`} onClick={onClick}>
+    <div
+      className={`hand-card${isSelected ? ' hand-card--sel' : ''}`}
+      onClick={onSelect}
+      draggable
+      onDragStart={e => { onSelect(); onDragStart(); }}
+    >
       <CardImg card={card} flipped={flipped} size="sm" />
       <div className="hand-card-zones">
         <ZoneBadge zone={zones.left} />
         <ZoneBadge zone={zones.right} />
       </div>
+      {isSelected && (
+        <button
+          className="flip-btn"
+          onClick={e => { e.stopPropagation(); onFlip(); }}
+          title="Rotate card"
+        >↻</button>
+      )}
     </div>
   );
 }
@@ -313,47 +346,64 @@ function ActionModal({ G, resolveAction }) {
 
 // ── Mat ───────────────────────────────────────────────────────────────────────
 
-function Mat({ G, onPick }) {
+function Mat({ G, onPick, isDragging, onDrop }) {
   const { mat, protectedUids, matPickMode } = G;
   return (
     <div className="mat-area">
       <div className="mat-label">THE MAT — {mat.length * 2} / 8 zones (ring out at 8+)</div>
-      {mat.length === 0
-        ? <div className="mat-empty">Mat is empty</div>
-        : (
-          <div className="mat-scroll-wrap">
-            <div className="mat-inner">
-              <MatZoneStrip mat={mat} />
-              <div className="mat-cards-row">
-                {mat.map((entry, i) => (
-                  <MatCardImg
-                    key={entry.uid}
-                    entry={entry}
-                    index={i}
-                    isProtected={protectedUids.includes(entry.uid)}
-                    isPickable={matPickMode === 'double_leg'}
-                    onPick={onPick}
-                  />
-                ))}
+      <div className="mat-row-wrap">
+        {isDragging && (
+          <DropZone placement="left" onDrop={onDrop}>
+            <span className="drop-zone-label">← Left</span>
+          </DropZone>
+        )}
+        {mat.length === 0 && !isDragging
+          ? <div className="mat-empty">Mat is empty</div>
+          : mat.length > 0 && (
+            <div className="mat-scroll-wrap">
+              <div className="mat-inner">
+                <MatZoneStrip mat={mat} />
+                <div className="mat-cards-row">
+                  {mat.map((entry, i) => (
+                    <MatCardImg
+                      key={entry.uid}
+                      entry={entry}
+                      index={i}
+                      isProtected={protectedUids.includes(entry.uid)}
+                      isPickable={matPickMode === 'double_leg'}
+                      onPick={onPick}
+                      isDragging={isDragging}
+                      onDrop={onDrop}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )
-      }
+          )
+        }
+        {isDragging && (
+          <DropZone placement="right" onDrop={onDrop}>
+            <span className="drop-zone-label">Right →</span>
+          </DropZone>
+        )}
+      </div>
     </div>
   );
 }
 
 // ── Hand area ─────────────────────────────────────────────────────────────────
 
-function HandArea({ G, selectCard, toggleFlip, playToMat, takePoint }) {
-  const { players, currentPlayer, selectedIdx, flipped, mat } = G;
+function HandArea({ G, selectCard, toggleFlip, takePoint, onDragStart, onDragEnd }) {
+  const { players, currentPlayer, selectedIdx, flipped } = G;
   const p = players[currentPlayer];
   const hasSelected = selectedIdx !== null;
 
   return (
-    <div className="hand-area">
-      <div className="hand-label">{p.name}'s Hand</div>
+    <div className="hand-area" onDragEnd={onDragEnd}>
+      <div className="hand-label">
+        {p.name}'s Hand
+        {p.hand.length > 0 && <span className="hand-hint-inline"> — tap to select, drag to place</span>}
+      </div>
       <div className="hand-cards">
         {p.hand.length === 0 && <div className="hand-empty">No cards in hand</div>}
         {p.hand.map((card, i) => (
@@ -362,34 +412,17 @@ function HandArea({ G, selectCard, toggleFlip, playToMat, takePoint }) {
             card={card}
             flipped={i === selectedIdx ? flipped : false}
             isSelected={i === selectedIdx}
-            onClick={() => selectCard(i)}
+            onSelect={() => selectCard(i)}
+            onDragStart={() => { selectCard(i); onDragStart(); }}
+            onFlip={toggleFlip}
           />
         ))}
       </div>
 
       {hasSelected && (
-        <div className="card-controls">
-          <button className="btn btn--flip" onClick={toggleFlip}>
-            {flipped ? '↺ Flip Back' : '↻ Flip Card'}
-          </button>
-          <div className="place-row">
-            <span className="place-label">Place:</span>
-            <button className="btn btn--place" onClick={() => playToMat('left')}>← Left End</button>
-            {mat.map((entry, i) => (
-              <button key={entry.uid} className="btn btn--place btn--ontop" onClick={() => playToMat(i)}>
-                On #{i + 1}
-              </button>
-            ))}
-            <button className="btn btn--place" onClick={() => playToMat('right')}>Right End →</button>
-          </div>
-          <button className="btn btn--point" onClick={takePoint}>
-            Discard for Point
-          </button>
-        </div>
-      )}
-
-      {!hasSelected && p.hand.length > 0 && (
-        <div className="hand-hint">Tap a card to select it</div>
+        <button className="btn btn--point" onClick={takePoint}>
+          Discard for Point
+        </button>
       )}
     </div>
   );
@@ -422,6 +455,14 @@ function ScoreHeader({ G }) {
 function GameBoard({ G, actions }) {
   const { selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard } = actions;
   const { phase, matPickMode, message, currentPlayer, players, flags } = G;
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragStart = () => setIsDragging(true);
+  const handleDragEnd = () => setIsDragging(false);
+  const handleDrop = (placement) => {
+    setIsDragging(false);
+    playToMat(placement);
+  };
 
   return (
     <div className="game-board">
@@ -435,7 +476,7 @@ function GameBoard({ G, actions }) {
         </div>
       )}
 
-      <Mat G={G} onPick={pickMatCard} />
+      <Mat G={G} onPick={pickMatCard} isDragging={isDragging} onDrop={handleDrop} />
 
       {phase === 'playing' && (
         <>
@@ -448,8 +489,9 @@ function GameBoard({ G, actions }) {
             G={G}
             selectCard={selectCard}
             toggleFlip={toggleFlip}
-            playToMat={playToMat}
             takePoint={takePoint}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           />
         </>
       )}
