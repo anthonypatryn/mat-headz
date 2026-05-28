@@ -370,10 +370,10 @@ function Mat({ G, onPick, isDragging, onDrop }) {
             {/* Left drop zones — always in DOM, shown via CSS when dragging */}
             <div className={`drop-zone-stack${isDragging ? ' drop-zone-stack--active' : ''}`}>
               <DropZone placement="adjacent-left" onDrop={onDrop}>
-                <span className="drop-zone-label">←| next to</span>
+                <span className="drop-zone-arrow">←←</span>
               </DropZone>
               <DropZone placement="left" onDrop={onDrop}>
-                <span className="drop-zone-label">←½ overlap</span>
+                <span className="drop-zone-arrow">←</span>
               </DropZone>
             </div>
 
@@ -398,10 +398,10 @@ function Mat({ G, onPick, isDragging, onDrop }) {
             {/* Right drop zones — always in DOM, shown via CSS when dragging */}
             <div className={`drop-zone-stack${isDragging ? ' drop-zone-stack--active' : ''}`}>
               <DropZone placement="right" onDrop={onDrop}>
-                <span className="drop-zone-label">½→ overlap</span>
+                <span className="drop-zone-arrow">→</span>
               </DropZone>
               <DropZone placement="adjacent-right" onDrop={onDrop}>
-                <span className="drop-zone-label">next to |→</span>
+                <span className="drop-zone-arrow">→→</span>
               </DropZone>
             </div>
           </div>
@@ -413,16 +413,17 @@ function Mat({ G, onPick, isDragging, onDrop }) {
 
 // ── Hand area ─────────────────────────────────────────────────────────────────
 
-function HandArea({ G, selectCard, toggleFlip, takePoint, onDragStart, onDragEnd }) {
+function HandArea({ G, selectCard, toggleFlip, takePoint, onDragStart, onDragEnd, disabled }) {
   const { players, currentPlayer, selectedIdx, flipped } = G;
   const p = players[currentPlayer];
   const hasSelected = selectedIdx !== null;
 
   return (
-    <div className="hand-area" onDragEnd={onDragEnd}>
+    <div className={`hand-area${disabled ? ' hand-area--disabled' : ''}`} onDragEnd={onDragEnd}>
       <div className="hand-label">
         {p.name}'s Hand
-        {p.hand.length > 0 && <span className="hand-hint-inline"> — tap to select, drag to place</span>}
+        {!disabled && p.hand.length > 0 && <span className="hand-hint-inline"> — tap to select, drag to place</span>}
+        {disabled && <span className="hand-hint-inline"> — confirm or cancel your placement above</span>}
       </div>
       <div className="hand-cards">
         {p.hand.length === 0 && <div className="hand-empty">No cards in hand</div>}
@@ -473,11 +474,14 @@ function ScoreHeader({ G }) {
 // ── Game board ────────────────────────────────────────────────────────────────
 
 function GameBoard({ G, actions }) {
-  const { selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn } = actions;
+  const { selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement } = actions;
   const { phase, matPickMode, message, currentPlayer, players, flags } = G;
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDragStart = () => setIsDragging(true);
+  const handleDragStart = () => {
+    if (phase !== 'playing') return;
+    setIsDragging(true);
+  };
   const handleDragEnd = () => setIsDragging(false);
   const handleDrop = (placement) => {
     setIsDragging(false);
@@ -498,7 +502,7 @@ function GameBoard({ G, actions }) {
 
       <Mat G={G} onPick={pickMatCard} isDragging={isDragging} onDrop={handleDrop} />
 
-      {phase === 'playing' && (
+      {(phase === 'playing' || phase === 'placed') && (
         <>
           <div className="turn-bar">
             {players[currentPlayer].name}'s Turn
@@ -507,13 +511,24 @@ function GameBoard({ G, actions }) {
           </div>
           <HandArea
             G={G}
-            selectCard={selectCard}
-            toggleFlip={toggleFlip}
-            takePoint={takePoint}
-            onDragStart={handleDragStart}
+            selectCard={phase === 'playing' ? selectCard : () => {}}
+            toggleFlip={phase === 'playing' ? toggleFlip : () => {}}
+            takePoint={phase === 'playing' ? takePoint : () => {}}
+            onDragStart={phase === 'playing' ? handleDragStart : () => {}}
             onDragEnd={handleDragEnd}
+            disabled={phase === 'placed'}
           />
         </>
+      )}
+
+      {phase === 'placed' && (
+        <div className="confirm-bar">
+          <div className="confirm-msg">Card placed on the mat — confirm or cancel?</div>
+          <div className="confirm-btns">
+            <button className="btn btn--secondary" onClick={cancelPlacement}>↩ Cancel</button>
+            <button className="btn btn--primary btn--lg" onClick={confirmPlacement}>Confirm ✓</button>
+          </div>
+        </div>
       )}
 
       {phase === 'action' && <ActionModal G={G} resolveAction={resolveAction} />}
@@ -521,9 +536,11 @@ function GameBoard({ G, actions }) {
       {phase === 'resolve' && (
         <div className="confirm-bar">
           {G.message && <div className="confirm-msg">{G.message}</div>}
-          <button className="btn btn--primary btn--lg" onClick={confirmTurn}>
-            End Turn
-          </button>
+          <div className="confirm-btns">
+            <button className="btn btn--primary btn--lg" onClick={confirmTurn}>
+              End Turn
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -582,7 +599,7 @@ function GameOver({ G, onNewGame }) {
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { G, initGame, startTurn, confirmTurn, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
+  const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
   const { phase, players, currentPlayer } = G;
 
   // Auto-init on mount — skip name entry screen
@@ -608,7 +625,7 @@ export default function App() {
   return (
     <GameBoard
       G={G}
-      actions={{ selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn }}
+      actions={{ selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement }}
     />
   );
 }

@@ -624,15 +624,15 @@
   background: rgba(232, 200, 74, 0.15);
 }
 
-.drop-zone-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-dim);
-  writing-mode: vertical-rl;
-  letter-spacing: 0.1em;
+.drop-zone-arrow {
+  font-size: 22px;
+  font-weight: 900;
+  color: rgba(120, 120, 200, 0.7);
+  line-height: 1;
+  letter-spacing: -2px;
 }
 
-.drop-zone--over .drop-zone-label {
+.drop-zone--over .drop-zone-arrow {
   color: var(--accent);
 }
 
@@ -656,6 +656,13 @@
   pointer-events: none;
 }
 
+/* ── Disabled hand (during placement confirmation) ────────────────────────── */
+
+.hand-area--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 /* ── Confirm / End Turn bar ───────────────────────────────────────────────── */
 
 .confirm-bar {
@@ -674,6 +681,13 @@
   font-weight: 700;
   color: var(--accent);
   text-align: center;
+}
+
+.confirm-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 /* ── Hand hint inline ─────────────────────────────────────────────────────── */

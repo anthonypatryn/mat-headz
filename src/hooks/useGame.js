@@ -10,7 +10,7 @@ function blankPlayer(name) {
 
 function fresh() {
   return {
-    phase: 'start',         // start | pass | playing | action | matPick | roundEnd | gameOver
+    phase: 'start',         // start | pass | playing | placed | action | matPick | roundEnd | gameOver
     players: [blankPlayer('Player 1'), blankPlayer('Player 2')],
     currentPlayer: 0,
     round: 1,
@@ -31,6 +31,7 @@ function fresh() {
     matPickMode: null,      // 'double_leg' — player must pick a mat card
     hipTossDrawn: null,     // card drawn by Hip Toss awaiting decision
     message: '',
+    pendingPlacement: null,  // { prevMat, prevMatSpan, prevPlayers, newMat, newSpan, newPlayers, placement, placed }
   };
 }
 
@@ -207,60 +208,7 @@ export function useGame() {
         };
       }
 
-      // Pair detection (only for end placements, not on-top)
-      let pair = null;
-      if (typeof placement !== 'number') {
-        pair = detectPair(placed, newMat, placement);
-      }
-
-      if (!pair) {
-        return endOrContinue({
-          ...prev,
-          players: newPlayers,
-          mat: newMat,
-          matSpan: newSpan,
-          selectedIdx: null,
-          flipped: false,
-        });
-      }
-
-      // Pair found!
-      const { moveset, sidesMatch, pairedZone } = pair;
-
-      // PIN = instant win
-      if (moveset === 'PIN') {
-        return {
-          ...prev,
-          players: newPlayers,
-          mat: newMat,
-          matSpan: newSpan,
-          phase: 'gameOver',
-          pending: null,
-          message: `${p.name} made a PIN — INSTANT WIN!`,
-          winner: currentPlayer,
-        };
-      }
-
-      // Engage special rule: can't chain Engage on a bonus turn
-      if (moveset === 'ENGAGE' && flags.hasEngaged) {
-        return endOrContinue({
-          ...prev,
-          players: newPlayers,
-          mat: newMat,
-          matSpan: newSpan,
-          selectedIdx: null,
-          flipped: false,
-          message: 'Engage pair — but you already Engaged this turn. No bonus.',
-        });
-      }
-
-      // Build action queue: secondary first, then tertiary if sides match
-      const actions = [];
-      actions.push({ type: `${moveset}_SECONDARY`, moveset, card, pairedZone });
-      if (sidesMatch && pairedZone.t) {
-        actions.push({ type: 'TERTIARY', action: pairedZone.t, card });
-      }
-
+      // Card placed on mat — wait for player to confirm before running pair detection
       return {
         ...prev,
         players: newPlayers,
@@ -268,10 +216,100 @@ export function useGame() {
         matSpan: newSpan,
         selectedIdx: null,
         flipped: false,
+        phase: 'placed',
+        pendingPlacement: {
+          prevMat: mat,
+          prevMatSpan: matSpan || 0,
+          prevPlayers: players,
+          newMat,
+          newSpan,
+          newPlayers,
+          placement,
+          placed,
+        },
+        message: '',
+      };
+    });
+  }
+
+  // ─── CONFIRM / CANCEL PLACEMENT ───────────────────────────────────────────
+
+  function confirmPlacement() {
+    setG(prev => {
+      const { pendingPlacement, currentPlayer, flags } = prev;
+      if (!pendingPlacement) return prev;
+      const { newMat, newSpan, newPlayers, placement, placed } = pendingPlacement;
+
+      const baseState = {
+        ...prev,
+        players: newPlayers,
+        mat: newMat,
+        matSpan: newSpan,
+        pendingPlacement: null,
+        selectedIdx: null,
+        flipped: false,
+      };
+
+      // Pair detection (only for end placements, not on-top)
+      let pair = null;
+      if (typeof placement !== 'number') {
+        pair = detectPair(placed, newMat, placement);
+      }
+
+      if (!pair) {
+        return endOrContinue(baseState);
+      }
+
+      const { moveset, sidesMatch, pairedZone } = pair;
+
+      if (moveset === 'PIN') {
+        return {
+          ...baseState,
+          phase: 'gameOver',
+          pending: null,
+          message: `${newPlayers[currentPlayer].name} made a PIN — INSTANT WIN!`,
+          winner: currentPlayer,
+        };
+      }
+
+      if (moveset === 'ENGAGE' && flags.hasEngaged) {
+        return endOrContinue({
+          ...baseState,
+          message: 'Engage pair — but you already Engaged this turn. No bonus.',
+        });
+      }
+
+      const actions = [];
+      actions.push({ type: `${moveset}_SECONDARY`, moveset, card: placed.card, pairedZone });
+      if (sidesMatch && pairedZone.t) {
+        actions.push({ type: 'TERTIARY', action: pairedZone.t, card: placed.card });
+      }
+
+      return {
+        ...baseState,
         phase: 'action',
         pending: actions[0],
         _actionQueue: actions.slice(1),
         flags: moveset === 'ENGAGE' ? { ...flags, hasEngaged: true } : flags,
+        message: '',
+      };
+    });
+  }
+
+  function cancelPlacement() {
+    setG(prev => {
+      const { pendingPlacement } = prev;
+      if (!pendingPlacement) return prev;
+      const { prevMat, prevMatSpan, prevPlayers } = pendingPlacement;
+      return {
+        ...prev,
+        mat: prevMat,
+        matSpan: prevMatSpan,
+        players: prevPlayers,
+        selectedIdx: null,
+        flipped: false,
+        phase: 'playing',
+        pendingPlacement: null,
         message: '',
       };
     });
@@ -802,6 +840,8 @@ export function useGame() {
     initGame,
     startTurn,
     confirmTurn,
+    confirmPlacement,
+    cancelPlacement,
     selectCard,
     toggleFlip,
     playToMat,
