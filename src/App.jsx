@@ -80,18 +80,44 @@ function MatZoneStrip({ mat }) {
   );
 }
 
-// ── Drop zone (appears on mat during drag) ────────────────────────────────────
+// ── Mat edge drop zone (one per side, full card height, hover detects overlap vs adjacent) ───
 
-function DropZone({ placement, onDrop, children }) {
-  const [over, setOver] = useState(false);
+function MatEdgeZone({ side, isDragging, onDrop }) {
+  const [hoverMode, setHoverMode] = useState(null); // 'overlap' | 'adjacent' | null
+
   return (
     <div
-      className={`drop-zone${over ? ' drop-zone--over' : ''}`}
-      onDragOver={e => { e.preventDefault(); setOver(true); }}
-      onDragLeave={() => setOver(false)}
-      onDrop={e => { e.preventDefault(); setOver(false); onDrop(placement); }}
+      className={`mat-edge-zone${isDragging ? ' mat-edge-zone--active' : ''}${hoverMode ? ' mat-edge-zone--over' : ''}`}
+      onDragOver={e => {
+        e.preventDefault();
+        const rect = e.currentTarget.getBoundingClientRect();
+        // Inner half (closer to mat) = overlap; outer half = adjacent
+        const isInner = side === 'left'
+          ? (e.clientX - rect.left) > rect.width / 2
+          : (e.clientX - rect.left) < rect.width / 2;
+        setHoverMode(isInner ? 'overlap' : 'adjacent');
+      }}
+      onDragLeave={() => setHoverMode(null)}
+      onDrop={e => {
+        e.preventDefault();
+        const mode = hoverMode ?? 'overlap';
+        const placement = mode === 'adjacent'
+          ? (side === 'left' ? 'adjacent-left' : 'adjacent-right')
+          : (side === 'left' ? 'left' : 'right');
+        onDrop(placement);
+        setHoverMode(null);
+      }}
     >
-      {children}
+      <div className="mat-edge-arrow">
+        {side === 'left'
+          ? (hoverMode === 'adjacent' ? '←←' : '←')
+          : (hoverMode === 'adjacent' ? '→→' : '→')}
+      </div>
+      {hoverMode && (
+        <div className="mat-edge-label">
+          {hoverMode === 'adjacent' ? 'next to' : '½ overlap'}
+        </div>
+      )}
     </div>
   );
 }
@@ -367,15 +393,8 @@ function Mat({ G, onPick, isDragging, onDrop }) {
         <div className="mat-inner">
           {mat.length > 0 && <MatZoneStrip mat={mat} />}
           <div className="mat-drop-row">
-            {/* Left drop zones — always in DOM, shown via CSS when dragging */}
-            <div className={`drop-zone-stack${isDragging ? ' drop-zone-stack--active' : ''}`}>
-              <DropZone placement="adjacent-left" onDrop={onDrop}>
-                <span className="drop-zone-arrow">←←</span>
-              </DropZone>
-              <DropZone placement="left" onDrop={onDrop}>
-                <span className="drop-zone-arrow">←</span>
-              </DropZone>
-            </div>
+            {/* Always in DOM — edge zones must exist before drag starts */}
+            <MatEdgeZone side="left" isDragging={isDragging} onDrop={onDrop} />
 
             <div className="mat-cards-row">
               {mat.length === 0 && (
@@ -395,15 +414,7 @@ function Mat({ G, onPick, isDragging, onDrop }) {
               ))}
             </div>
 
-            {/* Right drop zones — always in DOM, shown via CSS when dragging */}
-            <div className={`drop-zone-stack${isDragging ? ' drop-zone-stack--active' : ''}`}>
-              <DropZone placement="right" onDrop={onDrop}>
-                <span className="drop-zone-arrow">→</span>
-              </DropZone>
-              <DropZone placement="adjacent-right" onDrop={onDrop}>
-                <span className="drop-zone-arrow">→→</span>
-              </DropZone>
-            </div>
+            <MatEdgeZone side="right" isDragging={isDragging} onDrop={onDrop} />
           </div>
         </div>
       </div>

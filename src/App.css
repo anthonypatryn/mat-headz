@@ -363,7 +363,7 @@
 
 .mat-zone-strip {
   display: flex;
-  margin-left: calc(80px + 6px); /* align with mat-cards-row: drop-zone-stack width + gap */
+  margin-left: calc(100px + 6px); /* align with mat-cards-row: edge-zone width + gap */
 }
 
 /* Each slot = half a card width (400px / 2 = 200px) */
@@ -586,55 +586,56 @@
   transform: rotate(45deg);
 }
 
-/* ── Drop zones ───────────────────────────────────────────────────────────── */
+/* ── Mat edge zones (ghost card slots, one per side) ──────────────────────── */
 
-/* Two stacked drop zones per side.
-   ALWAYS in the DOM (never conditionally rendered) so the browser
-   can target them when a drag starts. Hidden via opacity until active. */
-.drop-zone-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* ALWAYS in the DOM — browser must see them before drag starts.
+   Invisible (opacity 0) until dragging; then reveal as a card-shaped slot. */
+.mat-edge-zone {
+  width: 100px;
+  height: 286px; /* full card height */
   flex-shrink: 0;
-  width: 80px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.1s;
+  border: 2px dashed rgba(80, 80, 160, 0.4);
+  border-radius: 8px;
+  background: rgba(60, 60, 120, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 0.1s, border-color 0.12s, background 0.12s;
 }
 
-.drop-zone-stack--active {
+.mat-edge-zone--active {
   opacity: 1;
   pointer-events: auto;
 }
 
-.drop-zone {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  height: 141px; /* half card height — two stack to 286px */
-  border: 2px dashed #3a3a6a;
-  border-radius: 8px;
-  background: rgba(60, 60, 120, 0.15);
-  transition: all 0.15s;
-  flex-shrink: 0;
+.mat-edge-zone--over {
+  border-color: rgba(232, 200, 74, 0.7);
+  background: rgba(232, 200, 74, 0.08);
 }
 
-.drop-zone--over {
-  border-color: var(--accent);
-  background: rgba(232, 200, 74, 0.15);
-}
-
-.drop-zone-arrow {
-  font-size: 22px;
+.mat-edge-arrow {
+  font-size: 26px;
   font-weight: 900;
-  color: rgba(120, 120, 200, 0.7);
+  color: rgba(130, 130, 210, 0.7);
   line-height: 1;
-  letter-spacing: -2px;
+  letter-spacing: -3px;
 }
 
-.drop-zone--over .drop-zone-arrow {
+.mat-edge-zone--over .mat-edge-arrow {
   color: var(--accent);
+}
+
+.mat-edge-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
 }
 
 .mat-card-img--over {
