@@ -124,11 +124,11 @@ function MatEdgeZone({ side, isDragging, onDrop }) {
 
 // ── Mat card image (overlaps neighbours by 50%) ───────────────────────────────
 
-function MatCardImg({ entry, index, isProtected, isPickable, onPick, isDragging, onDrop }) {
+function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, onFlipPlaced, isDragging, onDrop }) {
   const [over, setOver] = useState(false);
   return (
     <div
-      className={`mat-card-img${entry.adjacent ? ' mat-card-img--adjacent' : ''}${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${over && isDragging ? ' mat-card-img--over' : ''}`}
+      className={`mat-card-img${entry.adjacent ? ' mat-card-img--adjacent' : ''}${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${isPlaced ? ' mat-card-img--placed' : ''}${over && isDragging ? ' mat-card-img--over' : ''}`}
       style={{ zIndex: index + 1 }}
       onClick={isPickable ? () => onPick(entry.uid) : undefined}
       onDragOver={isDragging ? e => { e.preventDefault(); setOver(true); } : undefined}
@@ -139,6 +139,13 @@ function MatCardImg({ entry, index, isProtected, isPickable, onPick, isDragging,
       <div className="mat-card-num">{index + 1}</div>
       {isProtected && <div className="mat-badge mat-badge--prot">PROT</div>}
       {isPickable && <div className="mat-badge mat-badge--pick">REMOVE</div>}
+      {isPlaced && (
+        <button
+          className="flip-btn mat-flip-btn"
+          onClick={e => { e.stopPropagation(); onFlipPlaced(); }}
+          title="Rotate card"
+        >↻</button>
+      )}
       {over && isDragging && <div className="mat-drop-label">Place on top</div>}
     </div>
   );
@@ -153,7 +160,14 @@ function HandCard({ card, flipped, isSelected, onSelect, onDragStart, onFlip }) 
       className={`hand-card${isSelected ? ' hand-card--sel' : ''}`}
       onClick={onSelect}
       draggable
-      onDragStart={e => { onSelect(); onDragStart(); }}
+      onDragStart={e => {
+        onSelect();
+        onDragStart();
+        // Replace garbage browser drag ghost with transparent 1px image
+        const ghost = new Image(1, 1);
+        ghost.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        e.dataTransfer.setDragImage(ghost, 0, 0);
+      }}
     >
       <CardImg card={card} flipped={flipped} size="sm" />
       <div className="hand-card-zones">
@@ -382,9 +396,10 @@ function ActionModal({ G, resolveAction }) {
 
 // ── Mat ───────────────────────────────────────────────────────────────────────
 
-function Mat({ G, onPick, isDragging, onDrop }) {
-  const { mat, protectedUids, matPickMode, matSpan } = G;
+function Mat({ G, onPick, onFlipPlaced, isDragging, onDrop }) {
+  const { mat, protectedUids, matPickMode, matSpan, phase, pendingPlacement } = G;
   const span = matSpan ?? mat.length * 2;
+  const placedUid = phase === 'placed' && pendingPlacement ? pendingPlacement.placed.uid : null;
   return (
     <div className="mat-area">
       <div className="mat-label">THE MAT — {span} / 8 zones</div>
@@ -407,7 +422,9 @@ function Mat({ G, onPick, isDragging, onDrop }) {
                   index={i}
                   isProtected={protectedUids.includes(entry.uid)}
                   isPickable={matPickMode === 'double_leg'}
+                  isPlaced={entry.uid === placedUid}
                   onPick={onPick}
+                  onFlipPlaced={onFlipPlaced}
                   isDragging={isDragging}
                   onDrop={onDrop}
                 />
@@ -485,7 +502,7 @@ function ScoreHeader({ G }) {
 // ── Game board ────────────────────────────────────────────────────────────────
 
 function GameBoard({ G, actions }) {
-  const { selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement } = actions;
+  const { selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard } = actions;
   const { phase, matPickMode, message, currentPlayer, players, flags } = G;
   const [isDragging, setIsDragging] = useState(false);
 
@@ -511,7 +528,7 @@ function GameBoard({ G, actions }) {
         </div>
       )}
 
-      <Mat G={G} onPick={pickMatCard} isDragging={isDragging} onDrop={handleDrop} />
+      <Mat G={G} onPick={pickMatCard} onFlipPlaced={flipPlacedCard} isDragging={isDragging} onDrop={handleDrop} />
 
       {(phase === 'playing' || phase === 'placed') && (
         <>
@@ -519,6 +536,7 @@ function GameBoard({ G, actions }) {
             {players[currentPlayer].name}'s Turn
             {flags.isBonus && <span className="turn-tag"> · BONUS TURN</span>}
             {flags.bonusHand && <span className="turn-tag"> · SINGLE LEG ACTIVE</span>}
+            {phase === 'placed' && <span className="turn-tag turn-tag--placed"> · CARD PLACED — flip ↻ on mat or confirm below</span>}
           </div>
           <HandArea
             G={G}
@@ -534,10 +552,9 @@ function GameBoard({ G, actions }) {
 
       {phase === 'placed' && (
         <div className="confirm-bar">
-          <div className="confirm-msg">Card placed on the mat — confirm or cancel?</div>
           <div className="confirm-btns">
-            <button className="btn btn--secondary" onClick={cancelPlacement}>↩ Cancel</button>
-            <button className="btn btn--primary btn--lg" onClick={confirmPlacement}>Confirm ✓</button>
+            <button className="btn btn--secondary btn--lg" onClick={cancelPlacement}>↩ Pick Up Card</button>
+            <button className="btn btn--primary btn--lg" onClick={confirmPlacement}>Confirm Placement ✓</button>
           </div>
         </div>
       )}
@@ -610,7 +627,7 @@ function GameOver({ G, onNewGame }) {
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
+  const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
   const { phase, players, currentPlayer } = G;
 
   // Auto-init on mount — skip name entry screen
@@ -636,7 +653,7 @@ export default function App() {
   return (
     <GameBoard
       G={G}
-      actions={{ selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement }}
+      actions={{ selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard }}
     />
   );
 }

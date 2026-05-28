@@ -221,6 +221,7 @@ export function useGame() {
           prevMat: mat,
           prevMatSpan: matSpan || 0,
           prevPlayers: players,
+          prevSelectedIdx: selectedIdx,
           newMat,
           newSpan,
           newPlayers,
@@ -300,17 +301,36 @@ export function useGame() {
     setG(prev => {
       const { pendingPlacement } = prev;
       if (!pendingPlacement) return prev;
-      const { prevMat, prevMatSpan, prevPlayers } = pendingPlacement;
+      const { prevMat, prevMatSpan, prevPlayers, prevSelectedIdx, placed } = pendingPlacement;
       return {
         ...prev,
         mat: prevMat,
         matSpan: prevMatSpan,
         players: prevPlayers,
-        selectedIdx: null,
-        flipped: false,
+        selectedIdx: prevSelectedIdx,   // restore original selection so card is re-selectable
+        flipped: placed.flipped,        // preserve any flip the player made
         phase: 'playing',
         pendingPlacement: null,
         message: '',
+      };
+    });
+  }
+
+  function flipPlacedCard() {
+    setG(prev => {
+      if (prev.phase !== 'placed' || !prev.pendingPlacement) return prev;
+      const { pendingPlacement } = prev;
+      const { placed } = pendingPlacement;
+      const newPlaced = { ...placed, flipped: !placed.flipped };
+      const updatedMat = prev.mat.map(e => e.uid === placed.uid ? newPlaced : e);
+      return {
+        ...prev,
+        mat: updatedMat,
+        pendingPlacement: {
+          ...pendingPlacement,
+          placed: newPlaced,
+          newMat: updatedMat,
+        },
       };
     });
   }
@@ -842,6 +862,7 @@ export function useGame() {
     confirmTurn,
     confirmPlacement,
     cancelPlacement,
+    flipPlacedCard,
     selectCard,
     toggleFlip,
     playToMat,

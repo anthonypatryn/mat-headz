@@ -411,6 +411,11 @@
   margin-left: 0;
 }
 
+.mat-card-img--placed {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .mat-card-img--pick {
   cursor: pointer;
 }
@@ -482,6 +487,12 @@
 .turn-tag {
   color: var(--accent);
   font-weight: 700;
+}
+
+.turn-tag--placed {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 12px;
 }
 
 /* ── Hand area ────────────────────────────────────────────────────────────── */
@@ -584,6 +595,16 @@
 .flip-btn:hover {
   background: #fff;
   transform: rotate(45deg);
+}
+
+/* Flip button positioned on mat card (bottom-right, larger) */
+.mat-flip-btn {
+  top: auto;
+  right: 8px;
+  bottom: 8px;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
 }
 
 /* ── Mat edge zones (ghost card slots, one per side) ──────────────────────── */
