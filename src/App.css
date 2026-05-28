@@ -382,6 +382,8 @@
 .mat-card-img {
   position: relative;
   flex-shrink: 0;
+  width: 400px;
+  height: 286px;
   margin-left: -200px; /* overlap by half the card width */
   border-radius: 6px;
   overflow: hidden;

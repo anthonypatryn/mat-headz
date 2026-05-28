@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from './hooks/useGame';
 import { MOVESET_COLOR, TERTIARY_LABEL, TERTIARY_DESC, effectiveZones } from './data/deck';
 import './App.css';
@@ -553,23 +553,28 @@ function GameOver({ G, onNewGame }) {
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { G, initGame, startTurn, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound, newGame } = useGame();
+  const { G, initGame, startTurn, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
   const { phase, players, currentPlayer } = G;
 
-  if (phase === 'start') return <StartScreen onStart={initGame} />;
+  // Auto-init on mount — skip name entry screen
+  useEffect(() => {
+    const t = setTimeout(() => initGame('Player 1', 'Player 2'), 0);
+    return () => clearTimeout(t);
+  }, []);
 
-  if (phase === 'pass') {
-    return (
-      <PassScreen
-        playerName={players[currentPlayer].name}
-        message={G.message}
-        onReady={startTurn}
-      />
-    );
-  }
+  // Auto-skip pass screen — skip card-hiding handoff for now
+  useEffect(() => {
+    if (phase === 'pass') {
+      const t = setTimeout(startTurn, 0);
+      return () => clearTimeout(t);
+    }
+  }, [phase]);
+
+  // Show nothing while auto-transitions fire
+  if (phase === 'start' || phase === 'pass') return null;
 
   if (phase === 'roundEnd') return <RoundEnd G={G} onNextRound={nextRound} />;
-  if (phase === 'gameOver') return <GameOver G={G} onNewGame={newGame} />;
+  if (phase === 'gameOver') return <GameOver G={G} onNewGame={() => initGame('Player 1', 'Player 2')} />;
 
   return (
     <GameBoard
