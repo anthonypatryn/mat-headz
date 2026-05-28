@@ -8,23 +8,42 @@ import './App.css';
 function CardImg({ card, flipped, size = 'md' }) {
   const dims = { sm: [400, 286], md: [400, 286], lg: [400, 286] };
   const [w, h] = dims[size] ?? dims.md;
+
+  // Track which orientation is actually rendered; swap at the midpoint of the flip
+  // so the change is invisible (card is edge-on at that moment).
+  const [displayFlipped, setDisplayFlipped] = useState(flipped);
+  const [flipping, setFlipping] = useState(false);
+  const timers = useRef([]);
+
+  useEffect(() => {
+    if (flipped === displayFlipped) return;
+    timers.current.forEach(clearTimeout);
+    setFlipping(true);
+    const t1 = setTimeout(() => setDisplayFlipped(flipped), 200);
+    const t2 = setTimeout(() => setFlipping(false), 400);
+    timers.current = [t1, t2];
+  }, [flipped]);
+
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
   return (
     <div className="card-img-wrap" style={{ width: w, height: h }}>
-      <img
-        src={`/Cards/${card.img}`}
-        alt=""
-        style={{
-          position: 'absolute',
-          width: h,
-          height: w,
-          top: '50%',
-          left: '50%',
-          transform: `translate(-50%,-50%) rotate(${flipped ? 90 : -90}deg)`,
-          transition: 'transform 0.35s ease',
-          objectFit: 'cover',
-          userSelect: 'none',
-        }}
-      />
+      <div className={`card-flip-inner${flipping ? ' card-flipping' : ''}`}>
+        <img
+          src={`/Cards/${card.img}`}
+          alt=""
+          style={{
+            position: 'absolute',
+            width: h,
+            height: w,
+            top: '50%',
+            left: '50%',
+            transform: `translate(-50%,-50%) rotate(${displayFlipped ? 90 : -90}deg)`,
+            objectFit: 'cover',
+            userSelect: 'none',
+          }}
+        />
+      </div>
     </div>
   );
 }
