@@ -19,7 +19,7 @@ function CardImg({ card, flipped, size = 'md' }) {
           height: w,
           top: '50%',
           left: '50%',
-          transform: `translate(-50%,-50%) rotate(${flipped ? -90 : 90}deg)`,
+          transform: `translate(-50%,-50%) rotate(${flipped ? 90 : -90}deg)`,
           objectFit: 'cover',
           userSelect: 'none',
         }}
