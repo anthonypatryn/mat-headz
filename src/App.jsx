@@ -37,41 +37,23 @@ function CardImg({ card, flipped, size = 'md' }) {
   const dims = { sm: [400, 286], md: [400, 286], lg: [400, 286] };
   const [w, h] = dims[size] ?? dims.md;
 
-  // Track which orientation is actually rendered; swap at the midpoint of the flip
-  // so the change is invisible (card is edge-on at that moment).
-  const [displayFlipped, setDisplayFlipped] = useState(flipped);
-  const [flipping, setFlipping] = useState(false);
-  const timers = useRef([]);
-
-  useEffect(() => {
-    if (flipped === displayFlipped) return;
-    timers.current.forEach(clearTimeout);
-    setFlipping(true);
-    const t1 = setTimeout(() => setDisplayFlipped(flipped), 200);
-    const t2 = setTimeout(() => setFlipping(false), 400);
-    timers.current = [t1, t2];
-  }, [flipped]);
-
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
-
   return (
     <div className="card-img-wrap" style={{ width: w, height: h }}>
-      <div className={`card-flip-inner${flipping ? ' card-flipping' : ''}`}>
-        <img
-          src={`/Cards/${card.img}`}
-          alt=""
-          style={{
-            position: 'absolute',
-            width: h,
-            height: w,
-            top: '50%',
-            left: '50%',
-            transform: `translate(-50%,-50%) rotate(${displayFlipped ? 90 : -90}deg)`,
-            objectFit: 'cover',
-            userSelect: 'none',
-          }}
-        />
-      </div>
+      <img
+        src={`/Cards/${card.img}`}
+        alt=""
+        style={{
+          position: 'absolute',
+          width: h,
+          height: w,
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%,-50%) rotate(${flipped ? 90 : -90}deg)`,
+          objectFit: 'cover',
+          userSelect: 'none',
+          transition: 'transform 0.35s ease',
+        }}
+      />
     </div>
   );
 }
@@ -87,41 +69,22 @@ function ZoneBadge({ zone }) {
   );
 }
 
-// ── Mat zone strip — one badge per visible zone, absolutely positioned ────────
+// ── Mat zone strip — full-width bar per card showing both L and R zones ───────
 
 function MatZoneStrip({ mat }) {
   if (mat.length === 0) return null;
-  const slots = [];
-  mat.forEach((entry, i) => {
-    const zones = effectiveZones(entry.card, entry.flipped);
-    const zo = entry.zoneOffset ?? (i * 2 + 3);
-    if (i === 0) {
-      slots.push({ key: `${entry.uid}-L`, pos: zo, zone: zones.left });
-    }
-    if (i < mat.length - 1) {
-      const next = mat[i + 1];
-      const nextZones = effectiveZones(next.card, next.flipped);
-      const nextZo = next.zoneOffset ?? (zo + (next.adjacent ? 2 : 1));
-      const diff = nextZo - zo;
-      if (diff >= 2) {
-        // Adjacent — both exposed edge zones are visible
-        slots.push({ key: `${entry.uid}-R`, pos: zo + 1, zone: zones.right });
-        slots.push({ key: `${next.uid}-L`, pos: nextZo, zone: nextZones.left });
-      } else {
-        // Overlap — seam: show only the TOP card's zone (next card is on top)
-        slots.push({ key: `${entry.uid}-seam`, pos: zo + 1, zone: nextZones.left });
-      }
-    } else {
-      slots.push({ key: `${entry.uid}-R`, pos: zo + 1, zone: zones.right });
-    }
-  });
   return (
     <div className="mat-zone-strip">
-      {slots.map(s => (
-        <div key={s.key} className="zone-slot" style={{ left: s.pos * 200 }}>
-          <ZoneBadge zone={s.zone} />
-        </div>
-      ))}
+      {mat.map((entry, i) => {
+        const zones = effectiveZones(entry.card, entry.flipped);
+        const zo = entry.zoneOffset ?? (i * 2 + 3);
+        return (
+          <div key={entry.uid} className="zone-card-bar" style={{ left: zo * 200, zIndex: i + 1 }}>
+            <div className="zone-card-half"><ZoneBadge zone={zones.left} /></div>
+            <div className="zone-card-half"><ZoneBadge zone={zones.right} /></div>
+          </div>
+        );
+      })}
     </div>
   );
 }
