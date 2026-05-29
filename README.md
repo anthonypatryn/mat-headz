@@ -1,16 +1,33 @@
-# React + Vite
+# Mat Headz
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A 2-player wrestling card game built with React + Vite.
 
-Currently, two official plugins are available:
+## What It Is
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Players take turns placing cards on a shared mat. Cards have two zones (LEFT / RIGHT), each with a moveset type and edge labels. When adjacent cards' facing zones match, a **secondary action** fires. When the touching outer edges also share the same label, a **tertiary action** fires on top of that.
 
-## React Compiler
+First player to land a **PIN match** wins instantly. Otherwise, most points after 3 rounds wins.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Running Locally
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Opens at `http://localhost:5173`.
+
+## Rules & Code Reference
+
+See **[CLAUDE.md](./CLAUDE.md)** for:
+- Full game rules (placement types, secondaries, tertiaries)
+- All 18 card definitions
+- Key code file map
+- Game state phase diagram
+- detectPair / effectiveZones logic
+
+## Stack
+
+- React 18
+- Vite
+- No external UI libraries — all custom CSS
