@@ -32,28 +32,41 @@ const SECONDARY_PREVIEW = {
 };
 
 // ── Card image ────────────────────────────────────────────────────────────────
+// The card images are portrait photos. We display them landscape by putting
+// them in a portrait inner div (286×400) that rotates -90° (normal) or +90°
+// (flipped). The ENTIRE inner div — image and all — spins as one solid unit.
+// `unclipped` lets the spinning card break out of its container (used for the
+// placed-on-mat card so it doesn't appear to rotate inside a frame).
 
-function CardImg({ card, flipped, size = 'md' }) {
-  const dims = { sm: [400, 286], md: [400, 286], lg: [400, 286] };
-  const [w, h] = dims[size] ?? dims.md;
+function CardImg({ card, flipped, unclipped = false }) {
+  const lw = 400, lh = 286;  // landscape footprint shown to the rest of the layout
+  const pw = lh,  ph = lw;   // portrait inner div: 286 wide × 400 tall
 
   return (
-    <div className="card-img-wrap" style={{ width: w, height: h }}>
-      <img
-        src={`/Cards/${card.img}`}
-        alt=""
-        style={{
-          position: 'absolute',
-          width: h,
-          height: w,
-          top: '50%',
-          left: '50%',
-          transform: `translate(-50%,-50%) rotate(${flipped ? 90 : -90}deg)`,
-          objectFit: 'cover',
-          userSelect: 'none',
-          transition: 'transform 0.35s ease',
-        }}
-      />
+    // Outer div: landscape footprint. overflow:hidden clips during spin unless unclipped.
+    <div style={{
+      width: lw, height: lh,
+      position: 'relative',
+      flexShrink: 0,
+      borderRadius: 6,
+      overflow: unclipped ? 'visible' : 'hidden',
+    }}>
+      {/* Inner portrait div — THIS rotates as a whole unit */}
+      <div style={{
+        position: 'absolute',
+        width: pw, height: ph,
+        top: '50%', left: '50%',
+        transform: `translate(-50%, -50%) rotate(${flipped ? 90 : -90}deg)`,
+        transition: 'transform 0.4s ease',
+        overflow: 'hidden',
+        borderRadius: 4,
+      }}>
+        <img
+          src={`/Cards/${card.img}`}
+          alt=""
+          style={{ width: '100%', height: '100%', objectFit: 'cover', userSelect: 'none', display: 'block' }}
+        />
+      </div>
     </div>
   );
 }
@@ -100,7 +113,7 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
       onClick={isPickable ? () => onPick(entry.uid) : undefined}
       onMouseDown={isPlaced ? onPlacedMouseDown : undefined}
     >
-      <CardImg card={entry.card} flipped={entry.flipped} size="md" />
+      <CardImg card={entry.card} flipped={entry.flipped} unclipped={isPlaced} />
       <div className="mat-card-num">{index + 1}</div>
       {isProtected && <div className="mat-badge mat-badge--prot">PROT</div>}
       {isPickable && <div className="mat-badge mat-badge--pick">REMOVE</div>}
@@ -227,7 +240,7 @@ function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, on
       onClick={onSelect}
       onMouseDown={onMouseDown}
     >
-      <CardImg card={card} flipped={flipped} size="sm" />
+      <CardImg card={card} flipped={flipped} />
       <div className="hand-card-zones">
         <ZoneBadge zone={zones.left} />
         <ZoneBadge zone={zones.right} />
@@ -302,7 +315,7 @@ function ActionModal({ G, resolveAction }) {
           <div className="modal-pick-row">
             {p.hand.map((card, i) => (
               <button key={i} className="modal-pick-card" onClick={() => resolveAction(i)}>
-                <CardImg card={card} flipped={false} size="sm" />
+                <CardImg card={card} flipped={false} />
                 <div className="modal-pick-zones">
                   <ZoneBadge zone={card.L} />
                   <ZoneBadge zone={card.R} />
@@ -324,7 +337,7 @@ function ActionModal({ G, resolveAction }) {
           <div className="modal-pick-row">
             {p.hand.map((card, i) => (
               <button key={i} className="modal-pick-card" onClick={() => resolveAction(i)}>
-                <CardImg card={card} flipped={false} size="sm" />
+                <CardImg card={card} flipped={false} />
                 <div className="modal-pick-zones">
                   <ZoneBadge zone={card.L} />
                   <ZoneBadge zone={card.R} />
@@ -344,7 +357,7 @@ function ActionModal({ G, resolveAction }) {
       <div className="modal-overlay">
         <div className="modal">
           <h3>HIP TOSS — You Drew:</h3>
-          <CardImg card={drawnCard} flipped={false} size="md" />
+          <CardImg card={drawnCard} flipped={false} />
           <div className="modal-zones-row">
             <ZoneBadge zone={drawnCard.L} />
             <ZoneBadge zone={drawnCard.R} />
