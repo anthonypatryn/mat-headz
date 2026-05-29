@@ -189,12 +189,35 @@
   gap: 1px;
 }
 
+/* Full variant used in the mat zone strip */
+.zone-badge--full {
+  padding: 5px 8px;
+  gap: 3px;
+  justify-content: center;
+}
+
+.zone-side-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
 .zone-m {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.95);
   line-height: 1;
+}
+
+.zone-tertiaries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
 }
 
 .zone-t {
@@ -202,6 +225,16 @@
   font-weight: 500;
   color: rgba(255, 255, 255, 0.82);
   line-height: 1.2;
+}
+
+.zone-t--edge {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Score header ─────────────────────────────────────────────────────────── */
@@ -355,7 +388,7 @@
 .mat-zone-strip {
   position: relative;
   width: 1600px;
-  height: 48px;
+  height: 90px;
 }
 
 /* One bar per mat card — spans full card width (400px = 2 zones) */

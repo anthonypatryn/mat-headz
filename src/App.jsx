@@ -20,8 +20,16 @@ function previewPlacement(placed, newMat, placement) {
   const placedZone = isRight ? placedZones.left : placedZones.right;
   const adjZone   = isRight ? adjZones.right   : adjZones.left;
   if (placedZone.m !== adjZone.m) return null;
-  const sidesMatch = placed.flipped !== adjacentCard.flipped;
-  return { moveset: placedZone.m, sidesMatch, pairedZone: placedZone };
+  // Tertiary fires when touching outer edges share the same label.
+  // isRight:  placed=rightCard, adjacent=leftCard  → adjZone.tR touches placedZone.tL
+  // !isRight: placed=leftCard,  adjacent=rightCard → placedZone.tR touches adjZone.tL
+  let tertiaryKey = null;
+  if (isRight) {
+    if (adjZone.tR && placedZone.tL && adjZone.tR === placedZone.tL) tertiaryKey = adjZone.tR;
+  } else {
+    if (placedZone.tR && adjZone.tL && placedZone.tR === adjZone.tL) tertiaryKey = placedZone.tR;
+  }
+  return { moveset: placedZone.m, tertiaryKey, pairedZone: placedZone };
 }
 
 const SECONDARY_PREVIEW = {
@@ -72,12 +80,25 @@ function CardImg({ card, flipped, unclipped = false }) {
 }
 
 // ── Zone badge ────────────────────────────────────────────────────────────────
+// compact=true  → small, used in hand cards & modals
+// compact=false → full, used in the mat zone strip (shows description too)
 
-function ZoneBadge({ zone }) {
+function ZoneBadge({ zone, side, compact = true }) {
   return (
-    <div className="zone-badge" style={{ background: MOVESET_COLOR[zone.m] }}>
+    <div className={`zone-badge${compact ? '' : ' zone-badge--full'}`} style={{ background: MOVESET_COLOR[zone.m] }}>
+      {!compact && side && <span className="zone-side-label">{side}</span>}
       <span className="zone-m">{zone.m}</span>
-      {zone.t && <span className="zone-t">{TERTIARY_LABEL[zone.t]}</span>}
+      {!compact
+        ? (
+          <div className="zone-tertiaries">
+            <span className="zone-t zone-t--edge">◀ {zone.tL ? TERTIARY_LABEL[zone.tL] : '—'}</span>
+            <span className="zone-t zone-t--edge">{zone.tR ? TERTIARY_LABEL[zone.tR] : '—'} ▶</span>
+          </div>
+        )
+        : (zone.tL || zone.tR) && (
+            <span className="zone-t">{TERTIARY_LABEL[zone.tL || zone.tR]}</span>
+          )
+      }
     </div>
   );
 }
@@ -93,8 +114,8 @@ function MatZoneStrip({ mat }) {
         const zo = entry.zoneOffset ?? (i * 2 + 3);
         return (
           <div key={entry.uid} className="zone-card-bar" style={{ left: zo * 200, zIndex: i + 1 }}>
-            <div className="zone-card-half"><ZoneBadge zone={zones.left} /></div>
-            <div className="zone-card-half"><ZoneBadge zone={zones.right} /></div>
+            <div className="zone-card-half"><ZoneBadge zone={zones.left} side="LEFT" compact={false} /></div>
+            <div className="zone-card-half"><ZoneBadge zone={zones.right} side="RIGHT" compact={false} /></div>
           </div>
         );
       })}
@@ -124,7 +145,7 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
 // ── Placement preview banner — shown below placed card before confirm ─────────
 
 function PlacementPreview({ preview }) {
-  const { moveset, sidesMatch, pairedZone } = preview;
+  const { moveset, tertiaryKey, pairedZone } = preview;
   return (
     <div className={`placement-preview placement-preview--${moveset.toLowerCase()}`}>
       <div className="placement-preview__row">
@@ -134,10 +155,10 @@ function PlacementPreview({ preview }) {
           <span className="placement-preview__secondary">{SECONDARY_PREVIEW[moveset]}</span>
         </div>
       </div>
-      {sidesMatch && pairedZone.t && (
+      {tertiaryKey && (
         <div className="placement-preview__tertiary">
-          <span className="placement-preview__tert-name">✦ {TERTIARY_LABEL[pairedZone.t]}</span>
-          <span className="placement-preview__tert-desc">{TERTIARY_DESC[pairedZone.t]}</span>
+          <span className="placement-preview__tert-name">✦ {TERTIARY_LABEL[tertiaryKey]}</span>
+          <span className="placement-preview__tert-desc">{TERTIARY_DESC[tertiaryKey]}</span>
         </div>
       )}
     </div>
@@ -210,7 +231,7 @@ function DeckPile({ count }) {
         {count > 1 && <div className="deck-pile__shadow deck-pile__shadow--mid" />}
         <div className="deck-pile__face">
           <img
-            src="/Cards/Back.jpg"
+            src="/Cards/Back.png"
             alt="Deck"
             style={{
               position: 'absolute',

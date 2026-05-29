@@ -277,7 +277,7 @@ export function useGame() {
         return endOrContinue(baseState);
       }
 
-      const { moveset, sidesMatch, pairedZone } = pair;
+      const { moveset, tertiaryKey, pairedZone } = pair;
 
       if (moveset === 'PIN') {
         return {
@@ -298,8 +298,8 @@ export function useGame() {
 
       const actions = [];
       actions.push({ type: `${moveset}_SECONDARY`, moveset, card: placed.card, pairedZone });
-      if (sidesMatch && pairedZone.t) {
-        actions.push({ type: 'TERTIARY', action: pairedZone.t, card: placed.card });
+      if (tertiaryKey) {
+        actions.push({ type: 'TERTIARY', action: tertiaryKey, card: placed.card });
       }
 
       return {
@@ -356,29 +356,33 @@ export function useGame() {
   function detectPair(placed, newMat, placement) {
     const placedZones = effectiveZones(placed.card, placed.flipped);
     let adjacentCard = null;
-    let placedSide = null; // which zone of placed card is touching
 
     if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
       adjacentCard = newMat[1];
-      placedSide = 'right';
     } else if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
       adjacentCard = newMat[newMat.length - 2];
-      placedSide = 'left';
     }
 
     if (!adjacentCard) return null;
 
     const adjZones = effectiveZones(adjacentCard.card, adjacentCard.flipped);
-    const placedZone = placement === 'right' ? placedZones.left : placedZones.right;
-    const adjZone = placement === 'right' ? adjZones.right : adjZones.left;
+    const isRight = placement === 'right' || placement === 'adjacent-right';
+    const placedZone = isRight ? placedZones.left : placedZones.right;
+    const adjZone   = isRight ? adjZones.right   : adjZones.left;
 
     if (placedZone.m !== adjZone.m) return null;
 
-    // Sides match: the placed card is flipped XOR the adjacent card is flipped
-    // This means same original-side zones are touching
-    const sidesMatch = placed.flipped !== adjacentCard.flipped;
+    // Tertiary fires when the touching outer edges share the same label.
+    // isRight:  placed = rightCard, adjacent = leftCard  → adjZone.tR touches placedZone.tL
+    // !isRight: placed = leftCard,  adjacent = rightCard → placedZone.tR touches adjZone.tL
+    let tertiaryKey = null;
+    if (isRight) {
+      if (adjZone.tR && placedZone.tL && adjZone.tR === placedZone.tL) tertiaryKey = adjZone.tR;
+    } else {
+      if (placedZone.tR && adjZone.tL && placedZone.tR === adjZone.tL) tertiaryKey = placedZone.tR;
+    }
 
-    return { moveset: placedZone.m, sidesMatch, pairedZone: placedZone };
+    return { moveset: placedZone.m, tertiaryKey, pairedZone: placedZone };
   }
 
   // ─── ACTION RESOLUTION ────────────────────────────────────────────────────
