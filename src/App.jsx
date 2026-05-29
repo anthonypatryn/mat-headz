@@ -261,7 +261,7 @@ function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, on
       onClick={onSelect}
       onMouseDown={onMouseDown}
     >
-      <CardImg card={card} flipped={flipped} />
+      <CardImg card={card} flipped={flipped} unclipped={true} />
       <div className="hand-card-zones">
         <ZoneBadge zone={zones.left} />
         <ZoneBadge zone={zones.right} />
