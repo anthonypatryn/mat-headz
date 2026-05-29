@@ -206,21 +206,30 @@ export function useGame() {
 
       const newSpan = (matSpan || 0) + spanIncrease;
 
-      // Ring out — card would push mat beyond 8 half-card zones
+      // Ring out — card would push mat beyond 8 half-card zones.
+      // Warn the player first; they can confirm or go back.
       if (newSpan > 8) {
         return {
           ...prev,
           players: newPlayers,
-          mat: [],
-          matSpan: 0,
-          discard: [...discard, ...newMat.map(p2 => p2.card), card],
+          mat: newMat,
+          matSpan: newSpan,
           selectedIdx: null,
           flipped: false,
-          phase: 'resolve',
-          currentPlayer: 1 - currentPlayer,
-          flags: resetFlags(flags),
-          message: `RING OUT! ${p.name} cleared the mat. ${players[1 - currentPlayer].name} goes next.`,
-          pending: null,
+          phase: 'placed',
+          pendingPlacement: {
+            prevMat: mat,
+            prevMatSpan: matSpan || 0,
+            prevPlayers: players,
+            prevSelectedIdx: selectedIdx,
+            newMat,
+            newSpan,
+            newPlayers,
+            placement,
+            placed,
+            ringOut: true,
+          },
+          message: '',
         };
       }
 
@@ -253,9 +262,28 @@ export function useGame() {
 
   function confirmPlacement() {
     setG(prev => {
-      const { pendingPlacement, currentPlayer, flags } = prev;
+      const { pendingPlacement, currentPlayer, flags, discard } = prev;
       if (!pendingPlacement) return prev;
       const { newMat, newSpan, newPlayers, placement, placed } = pendingPlacement;
+
+      // Ring out confirmed — clear the mat
+      if (pendingPlacement.ringOut) {
+        return {
+          ...prev,
+          players: newPlayers,
+          mat: [],
+          matSpan: 0,
+          discard: [...discard, ...newMat.map(e => e.card)],
+          selectedIdx: null,
+          flipped: false,
+          phase: 'resolve',
+          currentPlayer: 1 - currentPlayer,
+          flags: resetFlags(flags),
+          pendingPlacement: null,
+          message: `RING OUT! ${newPlayers[currentPlayer].name} cleared the mat. ${newPlayers[1 - currentPlayer].name} goes next.`,
+          pending: null,
+        };
+      }
 
       const baseState = {
         ...prev,
@@ -267,17 +295,28 @@ export function useGame() {
         flipped: false,
       };
 
-      // Pair detection (only for end placements, not on-top)
-      let pair = null;
-      if (typeof placement !== 'number') {
-        pair = detectPair(placed, newMat, placement);
-      }
+      // Pair detection — on-top checks both sides, end placements check one
+      const { left: leftPair, right: rightPair } = detectPair(placed, newMat, placement);
+      const hasBoth = leftPair && rightPair;
+      const singlePair = leftPair || rightPair;
 
-      if (!pair) {
+      if (!singlePair) {
         return endOrContinue(baseState);
       }
 
-      const { moveset, tertiaryKey, pairedZone } = pair;
+      // Both sides match — let the player choose which fires
+      if (hasBoth) {
+        return {
+          ...baseState,
+          phase: 'action',
+          pending: { type: 'CHOOSE_SIDE', leftPair, rightPair, placedCard: placed.card },
+          _actionQueue: [],
+          message: '',
+        };
+      }
+
+      // Single side match
+      const { moveset, tertiaryKey, pairedZone } = singlePair;
 
       if (moveset === 'PIN') {
         return {
@@ -353,36 +392,46 @@ export function useGame() {
 
   // ─── PAIR DETECTION ───────────────────────────────────────────────────────
 
-  function detectPair(placed, newMat, placement) {
+  // Check one directional pair.
+  // placedIsRight=true:  placed=rightCard, adjacent=leftCard  → placedZone=placed.left,  adjZone=adjacent.right
+  //   tertiary: adjZone.tR === placedZone.tL
+  // placedIsRight=false: placed=leftCard,  adjacent=rightCard → placedZone=placed.right, adjZone=adjacent.left
+  //   tertiary: placedZone.tR === adjZone.tL
+  function checkPairOneSide(placed, adjacentCard, placedIsRight) {
     const placedZones = effectiveZones(placed.card, placed.flipped);
-    let adjacentCard = null;
-
-    if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
-      adjacentCard = newMat[1];
-    } else if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
-      adjacentCard = newMat[newMat.length - 2];
-    }
-
-    if (!adjacentCard) return null;
-
-    const adjZones = effectiveZones(adjacentCard.card, adjacentCard.flipped);
-    const isRight = placement === 'right' || placement === 'adjacent-right';
-    const placedZone = isRight ? placedZones.left : placedZones.right;
-    const adjZone   = isRight ? adjZones.right   : adjZones.left;
-
+    const adjZones    = effectiveZones(adjacentCard.card, adjacentCard.flipped);
+    const placedZone  = placedIsRight ? placedZones.left  : placedZones.right;
+    const adjZone     = placedIsRight ? adjZones.right    : adjZones.left;
     if (placedZone.m !== adjZone.m) return null;
-
-    // Tertiary fires when the touching outer edges share the same label.
-    // isRight:  placed = rightCard, adjacent = leftCard  → adjZone.tR touches placedZone.tL
-    // !isRight: placed = leftCard,  adjacent = rightCard → placedZone.tR touches adjZone.tL
     let tertiaryKey = null;
-    if (isRight) {
+    if (placedIsRight) {
       if (adjZone.tR && placedZone.tL && adjZone.tR === placedZone.tL) tertiaryKey = adjZone.tR;
     } else {
       if (placedZone.tR && adjZone.tL && placedZone.tR === adjZone.tL) tertiaryKey = placedZone.tR;
     }
-
     return { moveset: placedZone.m, tertiaryKey, pairedZone: placedZone };
+  }
+
+  // Returns { left: pair|null, right: pair|null }.
+  // On-top (placement is a number): checks both neighbors (left AND right in mat array).
+  // End placements: only one neighbor exists.
+  function detectPair(placed, newMat, placement) {
+    if (typeof placement === 'number') {
+      const idx           = placement;
+      const leftNeighbor  = idx > 0                 ? newMat[idx - 1] : null;
+      const rightNeighbor = idx < newMat.length - 1 ? newMat[idx + 1] : null;
+      return {
+        left:  leftNeighbor  ? checkPairOneSide(placed, leftNeighbor,  true)  : null,
+        right: rightNeighbor ? checkPairOneSide(placed, rightNeighbor, false) : null,
+      };
+    }
+    if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
+      return { left: null, right: checkPairOneSide(placed, newMat[1], false) };
+    }
+    if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
+      return { left: checkPairOneSide(placed, newMat[newMat.length - 2], true), right: null };
+    }
+    return { left: null, right: null };
   }
 
   // ─── ACTION RESOLUTION ────────────────────────────────────────────────────
@@ -728,6 +777,32 @@ export function useGame() {
             );
             return nextAction2({ ...prev, players: newPlayers, deck: newDeck, pending: null });
           }
+        }
+
+        case 'CHOOSE_SIDE': {
+          // choice = 'left' | 'right'
+          const chosenPair = choice === 'left' ? pending.leftPair : pending.rightPair;
+          const { moveset, tertiaryKey, pairedZone } = chosenPair;
+
+          if (moveset === 'PIN') {
+            return { ...prev, phase: 'gameOver', pending: null, _actionQueue: [], message: `${p.name} made a PIN — INSTANT WIN!`, winner: currentPlayer };
+          }
+          if (moveset === 'ENGAGE' && flags.hasEngaged) {
+            return endOrContinue({ ...prev, pending: null, _actionQueue: [], message: 'Already Engaged this turn — no bonus.' });
+          }
+
+          const actions = [];
+          actions.push({ type: `${moveset}_SECONDARY`, moveset, card: pending.placedCard, pairedZone });
+          if (tertiaryKey) actions.push({ type: 'TERTIARY', action: tertiaryKey, card: pending.placedCard });
+
+          return {
+            ...prev,
+            phase: 'action',
+            pending: actions[0],
+            _actionQueue: actions.slice(1),
+            flags: moveset === 'ENGAGE' ? { ...flags, hasEngaged: true } : flags,
+            message: '',
+          };
         }
 
         case 'RINGOUT_MSG': {

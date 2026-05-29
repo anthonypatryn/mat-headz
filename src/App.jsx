@@ -5,31 +5,40 @@ import './App.css';
 
 // ── Placement preview (pure — mirrors detectPair from useGame.js) ─────────────
 
-function previewPlacement(placed, newMat, placement) {
-  if (typeof placement === 'number') return null; // on-top: no pair
+// Mirror of checkPairOneSide in useGame.js — keep in sync.
+function checkPairPreview(placed, adjacentCard, placedIsRight) {
   const placedZones = effectiveZones(placed.card, placed.flipped);
-  let adjacentCard = null;
-  if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
-    adjacentCard = newMat[1];
-  } else if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
-    adjacentCard = newMat[newMat.length - 2];
-  }
-  if (!adjacentCard) return null;
-  const adjZones = effectiveZones(adjacentCard.card, adjacentCard.flipped);
-  const isRight = placement === 'right' || placement === 'adjacent-right';
-  const placedZone = isRight ? placedZones.left : placedZones.right;
-  const adjZone   = isRight ? adjZones.right   : adjZones.left;
+  const adjZones    = effectiveZones(adjacentCard.card, adjacentCard.flipped);
+  const placedZone  = placedIsRight ? placedZones.left  : placedZones.right;
+  const adjZone     = placedIsRight ? adjZones.right    : adjZones.left;
   if (placedZone.m !== adjZone.m) return null;
-  // Tertiary fires when touching outer edges share the same label.
-  // isRight:  placed=rightCard, adjacent=leftCard  → adjZone.tR touches placedZone.tL
-  // !isRight: placed=leftCard,  adjacent=rightCard → placedZone.tR touches adjZone.tL
   let tertiaryKey = null;
-  if (isRight) {
+  if (placedIsRight) {
     if (adjZone.tR && placedZone.tL && adjZone.tR === placedZone.tL) tertiaryKey = adjZone.tR;
   } else {
     if (placedZone.tR && adjZone.tL && placedZone.tR === adjZone.tL) tertiaryKey = placedZone.tR;
   }
   return { moveset: placedZone.m, tertiaryKey, pairedZone: placedZone };
+}
+
+// Returns { left: pair|null, right: pair|null } or null (no matches).
+// Mirrors detectPair in useGame.js — keep in sync.
+function previewPlacement(placed, newMat, placement) {
+  if (typeof placement === 'number') {
+    const idx   = placement;
+    const left  = idx > 0                 ? checkPairPreview(placed, newMat[idx - 1], true)  : null;
+    const right = idx < newMat.length - 1 ? checkPairPreview(placed, newMat[idx + 1], false) : null;
+    return (left || right) ? { left, right } : null;
+  }
+  if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
+    const pair = checkPairPreview(placed, newMat[1], false);
+    return pair ? { left: null, right: pair } : null;
+  }
+  if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
+    const pair = checkPairPreview(placed, newMat[newMat.length - 2], true);
+    return pair ? { left: pair, right: null } : null;
+  }
+  return null;
 }
 
 const SECONDARY_PREVIEW = {
@@ -145,7 +154,30 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
 // ── Placement preview banner — shown below placed card before confirm ─────────
 
 function PlacementPreview({ preview }) {
-  const { moveset, tertiaryKey, pairedZone } = preview;
+  const { left, right } = preview;
+
+  // Both sides match — player will choose in the modal after confirm
+  if (left && right) {
+    return (
+      <div className="placement-preview placement-preview--both">
+        <div className="placement-preview__both-hdr">⚡ Both sides match — choose which fires after confirm!</div>
+        <div className="placement-preview__both-sides">
+          {[['LEFT', left], ['RIGHT', right]].map(([label, pair]) => (
+            <div key={label} className={`placement-preview__side placement-preview--${pair.moveset.toLowerCase()}`}>
+              <span className="placement-preview__side-label">{label}</span>
+              <ZoneBadge zone={pair.pairedZone} />
+              <span className="placement-preview__secondary">{SECONDARY_PREVIEW[pair.moveset]}</span>
+              {pair.tertiaryKey && <span className="placement-preview__tert-name">✦ {TERTIARY_LABEL[pair.tertiaryKey]}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Single side
+  const pair = left || right;
+  const { moveset, tertiaryKey, pairedZone } = pair;
   return (
     <div className={`placement-preview placement-preview--${moveset.toLowerCase()}`}>
       <div className="placement-preview__row">
@@ -167,14 +199,14 @@ function PlacementPreview({ preview }) {
 
 // ── Mat ───────────────────────────────────────────────────────────────────────
 
-function Mat({ G, matRef, onPick, onConfirm, onFlip, onPlacedMouseDown }) {
+function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown }) {
   const { mat, protectedUids, matPickMode, matSpan, phase, pendingPlacement } = G;
   const span = matSpan ?? mat.length * 2;
   const placedUid = phase === 'placed' && pendingPlacement ? pendingPlacement.placed.uid : null;
   const placedEntry = mat.find(e => e.uid === placedUid);
 
-  // Live preview of what Confirm will trigger
-  const preview = (phase === 'placed' && pendingPlacement)
+  // Live preview — suppressed during ring-out warning (no pair fires on ring out)
+  const preview = (phase === 'placed' && pendingPlacement && !pendingPlacement.ringOut)
     ? previewPlacement(pendingPlacement.placed, pendingPlacement.newMat, pendingPlacement.placement)
     : null;
 
@@ -207,11 +239,23 @@ function Mat({ G, matRef, onPick, onConfirm, onFlip, onPlacedMouseDown }) {
           {/* Confirm/flip buttons + live pair preview — anchored below placed card */}
           {phase === 'placed' && placedEntry && (
             <div className="placed-zone" style={{ paddingLeft: (placedEntry.zoneOffset ?? 3) * 200 }}>
-              <div className="placed-actions">
-                <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
-                <button className="btn btn--primary" onClick={onConfirm}>✓ Confirm</button>
-              </div>
-              {preview && <PlacementPreview preview={preview} />}
+              {pendingPlacement?.ringOut ? (
+                <div className="ringout-warning">
+                  <span className="ringout-warning__msg">⚠️ RING OUT — this placement clears the entire mat!</span>
+                  <div className="placed-actions">
+                    <button className="btn btn--outline" onClick={onCancel}>← Go Back</button>
+                    <button className="btn btn--danger" onClick={onConfirm}>Proceed with Ring Out</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="placed-actions">
+                    <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
+                    <button className="btn btn--primary" onClick={onConfirm}>✓ Confirm</button>
+                  </div>
+                  {preview && <PlacementPreview preview={preview} />}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -470,6 +514,34 @@ function ActionModal({ G, resolveAction }) {
   // DOUBLE_LEG_CHOOSE is handled by matPickMode banner — no blocking modal needed
   if (type === 'DOUBLE_LEG_CHOOSE') return null;
 
+  if (type === 'CHOOSE_SIDE') {
+    const { leftPair, rightPair } = pending;
+    return (
+      <div className="modal-overlay">
+        <div className="modal">
+          <h3>Both Sides Match!</h3>
+          <p>Choose which side to fire. Secondary <em>and</em> tertiary for the chosen side still both fire — you just can't do both sides.</p>
+          <div className="modal-btns">
+            <button
+              className={`btn btn--choose-side btn--choose-side--${leftPair.moveset.toLowerCase()}`}
+              onClick={() => resolveAction('left')}
+            >
+              <strong>LEFT — {leftPair.moveset}</strong>
+              {leftPair.tertiaryKey && <span className="choose-side-tert"> + {TERTIARY_LABEL[leftPair.tertiaryKey]}</span>}
+            </button>
+            <button
+              className={`btn btn--choose-side btn--choose-side--${rightPair.moveset.toLowerCase()}`}
+              onClick={() => resolveAction('right')}
+            >
+              <strong>RIGHT — {rightPair.moveset}</strong>
+              {rightPair.tertiaryKey && <span className="choose-side-tert"> + {TERTIARY_LABEL[rightPair.tertiaryKey]}</span>}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Generic TERTIARY — auto-resolves or transitions to a specific UI on click
   if (type === 'TERTIARY') {
     const { action } = pending;
@@ -668,6 +740,7 @@ function GameBoard({ G, actions }) {
         matRef={matRef}
         onPick={pickMatCard}
         onConfirm={confirmPlacement}
+        onCancel={cancelPlacement}
         onFlip={flipPlacedCard}
         onPlacedMouseDown={handlePlacedCardMouseDown}
       />
