@@ -25,8 +25,10 @@ function checkPairPreview(placed, adjacentCard, placedIsRight) {
 // Mirrors detectPair in useGame.js — keep in sync.
 function previewPlacement(placed, newMat, placement) {
   if (typeof placement === 'number') {
-    // On-top placement triggers nothing.
-    return null;
+    const idx   = placement;
+    const left  = idx > 0                 ? checkPairPreview(placed, newMat[idx - 1], true)  : null;
+    const right = idx < newMat.length - 1 ? checkPairPreview(placed, newMat[idx + 1], false) : null;
+    return (left || right) ? { left, right } : null;
   }
   if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
     const pair = checkPairPreview(placed, newMat[1], false);
