@@ -554,28 +554,9 @@ export function useGame() {
             }
           }
 
-          // Normal Takedown secondary
+          // Normal Takedown secondary — choices: 'point', 'pin', 'technique'
           if (choice === 'point') {
-            // Can only take point if can play a Pin from hand next (rules say: if cannot play Pin, discard)
-            // Simplified: always allow point taking; check hand for PIN
-            const handHasPin = p.hand.some(c => hasPinZone(c));
-            if (!handHasPin && p.hand.length > 0) {
-              // Discard a card out of play
-              const discardCard = p.hand[0];
-              const newHand = p.hand.slice(1);
-              const newPlayers = players.map((p2, i) =>
-                i === currentPlayer ? { ...p2, hand: newHand } : p2
-              );
-              return passTo(opponent, {
-                ...prev,
-                players: newPlayers,
-                discard: [...discard, discardCard],
-                pending: null,
-                _actionQueue: [],
-                message: 'No PIN in hand — card discarded, no point taken.',
-              });
-            }
-            // Take the point
+            // Gain 1 point: draw top card face-down into score pile
             if (deck.length === 0) return handleRoundEnd(prev);
             const newDeck = [...deck];
             const scoreCard = newDeck.pop();
@@ -584,31 +565,48 @@ export function useGame() {
                 ? { ...p2, scorePile: [...p2.scorePile, scoreCard], score: p2.score + 1 }
                 : p2
             );
-            // Continue with tertiary if queued, then end turn
             if (_actionQueue.length > 0) {
               return { ...prev, players: newPlayers, deck: newDeck, pending: _actionQueue[0], _actionQueue: _actionQueue.slice(1), phase: 'action' };
             }
             return passTo(opponent, { ...prev, players: newPlayers, deck: newDeck, pending: null, _actionQueue: [] });
-          } else {
-            // Take another turn
+
+          } else if (choice === 'pin') {
+            // Attempt a Pin: reveal top card of deck
             if (deck.length === 0) return handleRoundEnd(prev);
             const newDeck = [...deck];
-            const drawn = newDeck.pop();
-            const newPlayers = players.map((p2, i) =>
-              i === currentPlayer ? { ...p2, hand: [...p2.hand, drawn] } : p2
-            );
-            return {
-              ...prev,
-              players: newPlayers,
-              deck: newDeck,
-              phase: 'playing',
-              pending: null,
-              _actionQueue: [],
-              selectedIdx: null,
-              flipped: false,
-              message: `${p.name} — TAKEDOWN! Taking another turn.`,
-            };
+            const revealed = newDeck.pop();
+            if (hasPinZone(revealed)) {
+              // Has a PIN zone — win!
+              return {
+                ...prev,
+                deck: newDeck,
+                phase: 'gameOver',
+                pending: null,
+                _actionQueue: [],
+                message: `${p.name} revealed a PIN — INSTANT WIN!`,
+                winner: currentPlayer,
+              };
+            } else {
+              // No PIN — place in discard pile, turn ends
+              return passTo(opponent, {
+                ...prev,
+                deck: newDeck,
+                discard: [...discard, revealed],
+                pending: null,
+                _actionQueue: [],
+                message: 'No PIN found — card placed in discard pile.',
+              });
+            }
+
+          } else if (choice === 'technique') {
+            // Activate the matched technique — skip secondary, go straight to tertiary
+            if (_actionQueue.length > 0) {
+              return { ...prev, pending: _actionQueue[0], _actionQueue: _actionQueue.slice(1), phase: 'action' };
+            }
+            return passTo(opponent, { ...prev, pending: null, _actionQueue: [] });
           }
+
+          return passTo(opponent, { ...prev, pending: null, _actionQueue: [] });
         }
 
         case 'ESCAPE_SECONDARY': {

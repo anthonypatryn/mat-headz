@@ -519,14 +519,24 @@ function ActionModal({ G, resolveAction }) {
         </div>
       );
     }
+    const hasTertiary = G._actionQueue && G._actionQueue.length > 0;
     return (
       <div className="modal-overlay">
         <div className="modal">
           <h3>TAKEDOWN!</h3>
-          <p>Matching TAKEDOWN zones. Choose:</p>
+          <p>Matching TAKEDOWN zones. Choose ONE:</p>
           <div className="modal-btns">
-            <button className="btn btn--primary" onClick={() => resolveAction('point')}>Take a Point</button>
-            <button className="btn btn--secondary" onClick={() => resolveAction('turn')}>Take Another Turn</button>
+            <button className="btn btn--primary" onClick={() => resolveAction('point')}>
+              Gain 1 Point
+            </button>
+            <button className="btn btn--secondary" onClick={() => resolveAction('pin')}>
+              Attempt a Pin
+            </button>
+            {hasTertiary && (
+              <button className="btn btn--outline" onClick={() => resolveAction('technique')}>
+                Activate Technique
+              </button>
+            )}
           </div>
         </div>
       </div>
