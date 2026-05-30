@@ -4,11 +4,19 @@
 
 **A zone that is covered by another card is completely dead. It does NOTHING.**
 - No secondary, no tertiary, no matching of any kind
-- Both zones at an overlap point (the zone on top AND the zone underneath) are dead for pairing purposes
+- The zone UNDERNEATH (covered) is dead
+- The zone ON TOP (covering) is ACTIVE — it can still pair with adjacent zones
 - If a card has one zone covered and one zone uncovered, the **uncovered zone is still fully active**
 - This applies to ALL placement types: overlap, on-top, adjacent
 
-**In code:** Before any pair detection, check if the relevant zone is at the same position as another card's zone. If so, skip it entirely.
+**How to determine which zone is on top:** The card with the higher `uid` was placed more recently and is always on top. A zone is covered only if a card with a higher `uid` has a zone at the same mat position.
+
+**In code:**
+- `isZoneCovered(position, ownerUid, mat)` — returns true if any card with `uid > ownerUid` has a zone at `position`
+- For overlap-left: new card RIGHT (on top, active) pairs with existing card RIGHT (exposed). Use `isOverlap=true` in `checkPairOneSide`.
+- For overlap-right: new card LEFT (on top, active) pairs with existing card LEFT (exposed). Use `isOverlap=true`.
+- Adjacent placements (+2 span): normal pair check — no coverage involved.
+- **NEVER confuse overlap (+1 span) with adjacent (+2 span). Read the mat span number.**
 
 ---
 
