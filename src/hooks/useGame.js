@@ -391,6 +391,8 @@ export function useGame() {
   }
 
   // ─── PAIR DETECTION ───────────────────────────────────────────────────────
+  // NOTE: Claude repeatedly confused adjacent (+2 span) with overlap (+1 span).
+  // 4 zones with 2 cards = adjacent. 3 zones with 2 cards = overlap. READ THE SPAN.
 
   // Returns true if any card OTHER than ownerUid has a zone at the given mat position.
   function isZoneCovered(position, ownerUid, mat) {
