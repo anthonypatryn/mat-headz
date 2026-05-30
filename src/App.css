@@ -430,13 +430,25 @@
   height: 90px;
 }
 
+/* Sequential row of card zone bars — starts at leftmost card's pixel position */
+.zone-strip-row {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+}
+
 /* One bar per mat card — spans full card width (400px = 2 zones) */
 .zone-card-bar {
-  position: absolute;
   width: 400px;
   height: 100%;
+  flex-shrink: 0;
   display: flex;
   gap: 2px;
+}
+
+.zone-card-bar + .zone-card-bar {
+  border-left: 2px solid rgba(255, 255, 255, 0.12);
 }
 
 /* Each half = one zone (L or R) */

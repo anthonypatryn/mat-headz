@@ -417,13 +417,8 @@ export function useGame() {
   // End placements: only one neighbor exists.
   function detectPair(placed, newMat, placement) {
     if (typeof placement === 'number') {
-      const idx           = placement;
-      const leftNeighbor  = idx > 0                 ? newMat[idx - 1] : null;
-      const rightNeighbor = idx < newMat.length - 1 ? newMat[idx + 1] : null;
-      return {
-        left:  leftNeighbor  ? checkPairOneSide(placed, leftNeighbor,  true)  : null,
-        right: rightNeighbor ? checkPairOneSide(placed, rightNeighbor, false) : null,
-      };
+      // On-top placement triggers nothing — covered card's zones become inactive.
+      return { left: null, right: null };
     }
     if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
       return { left: null, right: checkPairOneSide(placed, newMat[1], false) };
