@@ -7,8 +7,9 @@ import './App.css';
 
 // Mirror of isZoneCovered in useGame.js — keep in sync.
 function isZoneCoveredPreview(position, ownerUid, mat) {
+  // A zone is covered only if a card placed AFTER it (higher uid = on top) has a zone there
   return mat.some(entry =>
-    entry.uid !== ownerUid &&
+    entry.uid > ownerUid &&
     (entry.zoneOffset === position || entry.zoneOffset + 1 === position)
   );
 }
@@ -136,7 +137,8 @@ function MatZoneStrip({ mat }) {
 
   // A zone is covered if any OTHER card has a zone at the same mat position.
   function isCovered(position, uid) {
-    return mat.some(e => e.uid !== uid &&
+    // A zone is covered only if a card placed AFTER it (higher uid = on top) has a zone there
+    return mat.some(e => e.uid > uid &&
       (e.zoneOffset === position || e.zoneOffset + 1 === position));
   }
 

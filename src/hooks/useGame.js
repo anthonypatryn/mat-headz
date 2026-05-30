@@ -396,8 +396,9 @@ export function useGame() {
 
   // Returns true if any card OTHER than ownerUid has a zone at the given mat position.
   function isZoneCovered(position, ownerUid, mat) {
+    // A zone is covered only if a card placed AFTER it (higher uid = on top) has a zone there
     return mat.some(entry =>
-      entry.uid !== ownerUid &&
+      entry.uid > ownerUid &&
       (entry.zoneOffset === position || entry.zoneOffset + 1 === position)
     );
   }
