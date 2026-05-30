@@ -133,15 +133,28 @@ function ZoneBadge({ zone, side, compact = true }) {
 function MatZoneStrip({ mat }) {
   if (mat.length === 0) return null;
   const leftOffset = mat[0].zoneOffset ?? 3;
+
+  // A zone is covered if any OTHER card has a zone at the same mat position.
+  function isCovered(position, uid) {
+    return mat.some(e => e.uid !== uid &&
+      (e.zoneOffset === position || e.zoneOffset + 1 === position));
+  }
+
   return (
     <div className="mat-zone-strip">
       <div className="zone-strip-row" style={{ left: leftOffset * 200 }}>
-        {mat.map((entry, i) => {
+        {mat.map((entry) => {
           const zones = effectiveZones(entry.card, entry.flipped);
+          const leftCovered  = isCovered(entry.zoneOffset,     entry.uid);
+          const rightCovered = isCovered(entry.zoneOffset + 1, entry.uid);
           return (
             <div key={entry.uid} className="zone-card-bar">
-              <div className="zone-card-half"><ZoneBadge zone={zones.left} side="LEFT" compact={false} /></div>
-              <div className="zone-card-half"><ZoneBadge zone={zones.right} side="RIGHT" compact={false} /></div>
+              <div className="zone-card-half">
+                {!leftCovered  && <ZoneBadge zone={zones.left}  side="LEFT"  compact={false} />}
+              </div>
+              <div className="zone-card-half">
+                {!rightCovered && <ZoneBadge zone={zones.right} side="RIGHT" compact={false} />}
+              </div>
             </div>
           );
         })}
