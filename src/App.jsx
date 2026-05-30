@@ -5,12 +5,20 @@ import './App.css';
 
 // ── Placement preview (pure — mirrors detectPair from useGame.js) ─────────────
 
+// Mirror of isZoneCovered in useGame.js — keep in sync.
+function isZoneCoveredPreview(position, ownerUid, mat) {
+  return mat.some(entry =>
+    entry.uid !== ownerUid &&
+    (entry.zoneOffset === position || entry.zoneOffset + 1 === position)
+  );
+}
+
 // Mirror of checkPairOneSide in useGame.js — keep in sync.
 function checkPairPreview(placed, adjacentCard, placedIsRight, isOverlap = false) {
   const placedZones = effectiveZones(placed.card, placed.flipped);
   const adjZones    = effectiveZones(adjacentCard.card, adjacentCard.flipped);
   const placedZone  = placedIsRight ? placedZones.left  : placedZones.right;
-  const adjZone = isOverlap
+  const adjZone     = isOverlap
     ? (placedIsRight ? adjZones.left  : adjZones.right)
     : (placedIsRight ? adjZones.right : adjZones.left);
   if (placedZone.m !== adjZone.m) return null;
@@ -27,23 +35,24 @@ function checkPairPreview(placed, adjacentCard, placedIsRight, isOverlap = false
 // Mirrors detectPair in useGame.js — keep in sync.
 function previewPlacement(placed, newMat, placement) {
   if (typeof placement === 'number') {
-    const idx   = placement;
+    const idx           = placement;
     const leftNeighbor  = idx > 0                 ? newMat[idx - 1] : null;
     const rightNeighbor = idx < newMat.length - 1 ? newMat[idx + 1] : null;
-    const leftIsOverlap  = !!leftNeighbor  && (leftNeighbor.zoneOffset + 1 === placed.zoneOffset);
-    const rightIsOverlap = !!rightNeighbor && (placed.zoneOffset + 1 === rightNeighbor.zoneOffset);
-    const left  = (leftNeighbor  && !leftIsOverlap)  ? checkPairPreview(placed, leftNeighbor,  true)  : null;
-    const right = (rightNeighbor && !rightIsOverlap) ? checkPairPreview(placed, rightNeighbor, false) : null;
+    const leftIsOverlap  = !!leftNeighbor  && isZoneCoveredPreview(leftNeighbor.zoneOffset + 1, leftNeighbor.uid,  newMat);
+    const rightIsOverlap = !!rightNeighbor && isZoneCoveredPreview(rightNeighbor.zoneOffset,    rightNeighbor.uid, newMat);
+    const left  = leftNeighbor  ? checkPairPreview(placed, leftNeighbor,  true,  leftIsOverlap)  : null;
+    const right = rightNeighbor ? checkPairPreview(placed, rightNeighbor, false, rightIsOverlap) : null;
     return (left || right) ? { left, right } : null;
   }
-  if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
-    const isOverlap = placement === 'left';
-    const pair = checkPairPreview(placed, newMat[1], false, isOverlap);
+  if (placement === 'left' || placement === 'right') {
+    return null;
+  }
+  if (placement === 'adjacent-left' && newMat.length >= 2) {
+    const pair = checkPairPreview(placed, newMat[1], false);
     return pair ? { left: null, right: pair } : null;
   }
-  if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
-    const isOverlap = placement === 'right';
-    const pair = checkPairPreview(placed, newMat[newMat.length - 2], true, isOverlap);
+  if (placement === 'adjacent-right' && newMat.length >= 2) {
+    const pair = checkPairPreview(placed, newMat[newMat.length - 2], true);
     return pair ? { left: pair, right: null } : null;
   }
   return null;
