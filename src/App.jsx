@@ -6,11 +6,13 @@ import './App.css';
 // ── Placement preview (pure — mirrors detectPair from useGame.js) ─────────────
 
 // Mirror of checkPairOneSide in useGame.js — keep in sync.
-function checkPairPreview(placed, adjacentCard, placedIsRight) {
+function checkPairPreview(placed, adjacentCard, placedIsRight, isOverlap = false) {
   const placedZones = effectiveZones(placed.card, placed.flipped);
   const adjZones    = effectiveZones(adjacentCard.card, adjacentCard.flipped);
   const placedZone  = placedIsRight ? placedZones.left  : placedZones.right;
-  const adjZone     = placedIsRight ? adjZones.right    : adjZones.left;
+  const adjZone = isOverlap
+    ? (placedIsRight ? adjZones.left  : adjZones.right)
+    : (placedIsRight ? adjZones.right : adjZones.left);
   if (placedZone.m !== adjZone.m) return null;
   let tertiaryKey = null;
   if (placedIsRight) {
@@ -26,16 +28,22 @@ function checkPairPreview(placed, adjacentCard, placedIsRight) {
 function previewPlacement(placed, newMat, placement) {
   if (typeof placement === 'number') {
     const idx   = placement;
-    const left  = idx > 0                 ? checkPairPreview(placed, newMat[idx - 1], true)  : null;
-    const right = idx < newMat.length - 1 ? checkPairPreview(placed, newMat[idx + 1], false) : null;
+    const leftNeighbor  = idx > 0                 ? newMat[idx - 1] : null;
+    const rightNeighbor = idx < newMat.length - 1 ? newMat[idx + 1] : null;
+    const leftIsOverlap  = !!leftNeighbor  && (leftNeighbor.zoneOffset + 1 === placed.zoneOffset);
+    const rightIsOverlap = !!rightNeighbor && (placed.zoneOffset + 1 === rightNeighbor.zoneOffset);
+    const left  = (leftNeighbor  && !leftIsOverlap)  ? checkPairPreview(placed, leftNeighbor,  true)  : null;
+    const right = (rightNeighbor && !rightIsOverlap) ? checkPairPreview(placed, rightNeighbor, false) : null;
     return (left || right) ? { left, right } : null;
   }
   if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
-    const pair = checkPairPreview(placed, newMat[1], false);
+    const isOverlap = placement === 'left';
+    const pair = checkPairPreview(placed, newMat[1], false, isOverlap);
     return pair ? { left: null, right: pair } : null;
   }
   if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
-    const pair = checkPairPreview(placed, newMat[newMat.length - 2], true);
+    const isOverlap = placement === 'right';
+    const pair = checkPairPreview(placed, newMat[newMat.length - 2], true, isOverlap);
     return pair ? { left: pair, right: null } : null;
   }
   return null;

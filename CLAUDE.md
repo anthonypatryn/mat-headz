@@ -1,5 +1,17 @@
 # Mat Headz — Game Rules & Project Reference
 
+## ⚠️ CRITICAL RULE — COVERED ZONES (trumps everything)
+
+**A zone that is covered by another card is completely dead. It does NOTHING.**
+- No secondary, no tertiary, no matching of any kind
+- Both zones at an overlap point (the zone on top AND the zone underneath) are dead for pairing purposes
+- If a card has one zone covered and one zone uncovered, the **uncovered zone is still fully active**
+- This applies to ALL placement types: overlap, on-top, adjacent
+
+**In code:** Before any pair detection, check if the relevant zone is at the same position as another card's zone. If so, skip it entirely.
+
+---
+
 ## Overview
 2-player wrestling card game. Place cards on the mat to trigger wrestling moves and score points. First to PIN wins instantly; otherwise most points after 3 rounds wins.
 
