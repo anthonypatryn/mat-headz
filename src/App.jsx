@@ -147,8 +147,9 @@ function MatZoneStrip({ mat }) {
           const zones = effectiveZones(entry.card, entry.flipped);
           const leftCovered  = isCovered(entry.zoneOffset,     entry.uid);
           const rightCovered = isCovered(entry.zoneOffset + 1, entry.uid);
+          const barLeft = (entry.zoneOffset - leftOffset) * 200;
           return (
-            <div key={entry.uid} className="zone-card-bar">
+            <div key={entry.uid} className="zone-card-bar" style={{ position: 'absolute', left: barLeft }}>
               <div className="zone-card-half">
                 {!leftCovered  && <ZoneBadge zone={zones.left}  side="LEFT"  compact={false} />}
               </div>

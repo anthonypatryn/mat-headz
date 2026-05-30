@@ -430,12 +430,13 @@
   height: 90px;
 }
 
-/* Sequential row of card zone bars — starts at leftmost card's pixel position */
+/* Zone strip row — starts at leftmost card's pixel position, children absolutely positioned */
 .zone-strip-row {
   position: absolute;
   top: 0;
   bottom: 0;
-  display: flex;
+  left: 0;
+  right: 0;
 }
 
 /* One bar per mat card — spans full card width (400px = 2 zones) */
