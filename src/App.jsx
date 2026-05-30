@@ -329,6 +329,40 @@ function DeckPile({ count }) {
   );
 }
 
+// ── Discard pile ─────────────────────────────────────────────────────────────
+
+function DiscardPile({ discard }) {
+  const w = 200, h = 143;
+  const topCard = discard.length > 0 ? discard[discard.length - 1] : null;
+  return (
+    <div className="deck-pile">
+      <div className="deck-pile__card" style={{ width: w, height: h }}>
+        {topCard ? (
+          <div className="deck-pile__face">
+            <img
+              src={`/Cards/${topCard.img}`}
+              alt={topCard.img}
+              style={{
+                position: 'absolute',
+                width: h, height: w,
+                top: '50%', left: '50%',
+                transform: 'translate(-50%,-50%) rotate(-90deg)',
+                objectFit: 'cover',
+                userSelect: 'none',
+              }}
+            />
+          </div>
+        ) : (
+          <div className="deck-pile__face" style={{ border: '2px dashed rgba(255,255,255,0.2)', borderRadius: 6 }} />
+        )}
+      </div>
+      <div className="deck-pile__label">
+        Discard ({discard.length})
+      </div>
+    </div>
+  );
+}
+
 // ── Hand card ─────────────────────────────────────────────────────────────────
 
 function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, onMouseDown, onFlip }) {
@@ -606,7 +640,7 @@ function ActionModal({ G, resolveAction }) {
 // ── Hand area ─────────────────────────────────────────────────────────────────
 
 function HandArea({ G, selectCard, toggleFlip, takePoint, onCardMouseDown, dragCardIdx, drawnCardIdx, disabled }) {
-  const { players, currentPlayer, selectedIdx, flipped, deck } = G;
+  const { players, currentPlayer, selectedIdx, flipped, deck, discard } = G;
   const p = players[currentPlayer];
   const hasSelected = selectedIdx !== null;
 
@@ -618,6 +652,7 @@ function HandArea({ G, selectCard, toggleFlip, takePoint, onCardMouseDown, dragC
       </div>
       <div className="hand-play-zone">
         <DeckPile count={deck.length} />
+        <DiscardPile discard={discard} />
         <div className="hand-cards-col">
           <div className="hand-cards">
             {p.hand.length === 0 && <div className="hand-empty">No cards in hand</div>}
