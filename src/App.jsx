@@ -713,7 +713,7 @@ function GameBoard({ G, actions }) {
       ) {
         const localX = e.clientX - rect.left;
         // Card is 400px (2 zones) wide, centered on cursor
-        const targetZone = Math.max(0, Math.min(6, Math.round(localX / 200) - 1));
+        const targetZone = Math.max(0, Math.min(7, Math.round(localX / 200) - 1));
 
         let placement = null;
         if (mat.length === 0) {
