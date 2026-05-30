@@ -44,15 +44,14 @@ function previewPlacement(placed, newMat, placement) {
     const right = rightNeighbor ? checkPairPreview(placed, rightNeighbor, false, rightIsOverlap) : null;
     return (left || right) ? { left, right } : null;
   }
-  if (placement === 'left' || placement === 'right') {
-    return null;
-  }
-  if (placement === 'adjacent-left' && newMat.length >= 2) {
-    const pair = checkPairPreview(placed, newMat[1], false);
+  if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
+    const isOverlap = placement === 'left';
+    const pair = checkPairPreview(placed, newMat[1], false, isOverlap);
     return pair ? { left: null, right: pair } : null;
   }
-  if (placement === 'adjacent-right' && newMat.length >= 2) {
-    const pair = checkPairPreview(placed, newMat[newMat.length - 2], true);
+  if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
+    const isOverlap = placement === 'right';
+    const pair = checkPairPreview(placed, newMat[newMat.length - 2], true, isOverlap);
     return pair ? { left: pair, right: null } : null;
   }
   return null;

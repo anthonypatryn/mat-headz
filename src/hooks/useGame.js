@@ -435,16 +435,15 @@ export function useGame() {
         right: rightNeighbor ? checkPairOneSide(placed, rightNeighbor, false, rightIsOverlap) : null,
       };
     }
-    // Overlap end placements: overlap zone is covered on both sides — nothing fires.
-    if (placement === 'left' || placement === 'right') {
-      return { left: null, right: null };
+    // Overlap end placements: the covered zone is dead.
+    // Check the new card's on-top zone vs the existing card's EXPOSED (same-side) zone.
+    if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
+      const isOverlap = placement === 'left';
+      return { left: null, right: checkPairOneSide(placed, newMat[1], false, isOverlap) };
     }
-    // Adjacent end placements: no overlap — normal pair check.
-    if (placement === 'adjacent-left' && newMat.length >= 2) {
-      return { left: null, right: checkPairOneSide(placed, newMat[1], false) };
-    }
-    if (placement === 'adjacent-right' && newMat.length >= 2) {
-      return { left: checkPairOneSide(placed, newMat[newMat.length - 2], true), right: null };
+    if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
+      const isOverlap = placement === 'right';
+      return { left: checkPairOneSide(placed, newMat[newMat.length - 2], true, isOverlap), right: null };
     }
     return { left: null, right: null };
   }
