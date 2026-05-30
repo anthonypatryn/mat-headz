@@ -35,8 +35,8 @@ function checkPairPreview(placed, adjacentCard, placedIsRight, isOverlap = false
 // Returns { left: pair|null, right: pair|null } or null (no matches).
 // Mirrors detectPair in useGame.js — keep in sync.
 function previewPlacement(placed, newMat, placement) {
-  if (typeof placement === 'number') {
-    const idx           = placement;
+  if (typeof placement === 'number' || (placement && typeof placement === 'object')) {
+    const idx = typeof placement === 'number' ? placement : placement.insertIdx;
     const leftNeighbor  = idx > 0                 ? newMat[idx - 1] : null;
     const rightNeighbor = idx < newMat.length - 1 ? newMat[idx + 1] : null;
     const leftIsOverlap  = !!leftNeighbor  && isZoneCoveredPreview(leftNeighbor.zoneOffset + 1, leftNeighbor.uid,  newMat);
@@ -742,8 +742,19 @@ function GameBoard({ G, actions }) {
           else if (targetZone === rightZone + 1) placement = 'right';
           else if (targetZone === rightZone + 2) placement = 'adjacent-right';
           else {
+            // Exact on-top match
             const idx = mat.findIndex(e2 => e2.zoneOffset === targetZone);
-            if (idx >= 0) placement = idx;
+            if (idx >= 0) {
+              placement = idx;
+            } else if (targetZone >= leftZone && targetZone <= rightZone + 1) {
+              // Straddle: within mat span but between two cards
+              const insertIdx = mat.findIndex(e2 => e2.zoneOffset > targetZone);
+              placement = {
+                type: 'straddle',
+                insertIdx: insertIdx >= 0 ? insertIdx : mat.length,
+                zoneOffset: targetZone,
+              };
+            }
           }
         }
 

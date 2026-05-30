@@ -161,6 +161,8 @@ export function useGame() {
       if (mat.length > 0) {
         if (typeof placement === 'number') {
           placedZoneOffset = mat[placement]?.zoneOffset ?? 3;
+        } else if (placement && typeof placement === 'object') {
+          placedZoneOffset = placement.zoneOffset;
         } else if (placement === 'left') {
           placedZoneOffset = (mat[0]?.zoneOffset ?? 4) - 1;
         } else if (placement === 'adjacent-left') {
@@ -173,7 +175,13 @@ export function useGame() {
       }
       const placed = { uid: uid(), card, flipped, adjacent: false, zoneOffset: placedZoneOffset };
 
-      if (typeof placement === 'number') {
+      if (placement && typeof placement === 'object' && placement.type === 'straddle') {
+        // Straddle: insert card within mat span, covering parts of two adjacent cards
+        const { insertIdx } = placement;
+        newMat = [...mat.slice(0, insertIdx), placed, ...mat.slice(insertIdx)];
+        spanIncrease = 0;
+
+      } else if (typeof placement === 'number') {
         // On top of existing card — span unchanged
         if (protectedUids.includes(mat[placement].uid)) {
           return { ...prev, message: 'That card is protected — it cannot be covered!' };
@@ -426,9 +434,9 @@ export function useGame() {
 
   // Returns { left: pair|null, right: pair|null }.
   function detectPair(placed, newMat, placement) {
-    // On-top: check both neighbors. Use isZoneCovered to detect if neighbor's facing zone is covered.
-    if (typeof placement === 'number') {
-      const idx           = placement;
+    // On-top or straddle: check both neighbors.
+    if (typeof placement === 'number' || (placement && typeof placement === 'object')) {
+      const idx = typeof placement === 'number' ? placement : placement.insertIdx;
       const leftNeighbor  = idx > 0                 ? newMat[idx - 1] : null;
       const rightNeighbor = idx < newMat.length - 1 ? newMat[idx + 1] : null;
       const leftIsOverlap  = !!leftNeighbor  && isZoneCovered(leftNeighbor.zoneOffset + 1, leftNeighbor.uid,  newMat);
