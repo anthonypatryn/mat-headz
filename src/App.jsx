@@ -135,11 +135,9 @@ function useCardQuadrant(card, flipped) {
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const isRight = x > rect.width / 2;
-    const isBottom = y > rect.height / 2;
-    const zone = isRight ? zones.right : zones.left;
-    const tKey = isBottom ? zone.tR : zone.tL;
+    const quarter = Math.min(3, Math.floor(x / (rect.width / 4))); // 0=col1, 1=col2, 2=col3, 3=col4
+    const zone = quarter < 2 ? zones.left : zones.right;
+    const tKey = quarter % 2 === 0 ? zone.tL : zone.tR;
     setState({ tooltip: getQuadrantTooltip(zone.m, tKey), x: e.clientX, y: e.clientY });
   };
 
