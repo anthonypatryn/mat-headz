@@ -120,6 +120,7 @@ function ZoneBadge({ zone, side, compact = true }) {
 // ── Card hover overlay — 4 quadrant tooltips ──────────────────────────────────
 
 function CardHoverOverlay({ card, flipped }) {
+  const [activeQ, setActiveQ] = useState(null);
   const zones = effectiveZones(card, flipped);
 
   const getTooltip = (zoneM, tKey) => {
@@ -129,22 +130,31 @@ function CardHoverOverlay({ card, flipped }) {
   };
 
   const quadrants = [
-    { zoneM: zones.left.m,  tKey: zones.left.tL,  style: { top: 0,    left: 0,    width: '50%', height: '50%' } },
-    { zoneM: zones.left.m,  tKey: zones.left.tR,  style: { top: '50%', left: 0,   width: '50%', height: '50%' } },
-    { zoneM: zones.right.m, tKey: zones.right.tL, style: { top: 0,    left: '50%', width: '50%', height: '50%' } },
+    { zoneM: zones.left.m,  tKey: zones.left.tL,  style: { top: 0,     left: 0,     width: '50%', height: '50%' } },
+    { zoneM: zones.left.m,  tKey: zones.left.tR,  style: { top: '50%', left: 0,     width: '50%', height: '50%' } },
+    { zoneM: zones.right.m, tKey: zones.right.tL, style: { top: 0,     left: '50%', width: '50%', height: '50%' } },
     { zoneM: zones.right.m, tKey: zones.right.tR, style: { top: '50%', left: '50%', width: '50%', height: '50%' } },
   ];
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 50 }}>
       {quadrants.map((q, i) => {
         const { label, desc } = getTooltip(q.zoneM, q.tKey);
+        const isActive = activeQ === i;
         return (
-          <div key={i} className="card-quadrant" style={q.style}>
-            <div className="card-tooltip">
-              <strong>{label}</strong>
-              {desc && <p>{desc}</p>}
-            </div>
+          <div
+            key={i}
+            style={{ position: 'absolute', ...q.style }}
+            onMouseEnter={() => setActiveQ(i)}
+            onMouseLeave={() => setActiveQ(null)}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            {isActive && (
+              <div className="card-tooltip">
+                <strong>{label}</strong>
+                {desc && <p>{desc}</p>}
+              </div>
+            )}
           </div>
         );
       })}
