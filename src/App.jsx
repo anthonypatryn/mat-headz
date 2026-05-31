@@ -119,61 +119,55 @@ function ZoneBadge({ zone, side, compact = true }) {
 
 // ── Card hover overlay — 4 quadrant tooltips ──────────────────────────────────
 
-function CardHoverOverlay({ card, flipped }) {
-  const [activeQ, setActiveQ] = useState(null);
+// Returns tooltip info for a given zone + edge key
+function getQuadrantTooltip(zoneM, tKey) {
+  if (zoneM === 'PIN') return { label: 'PIN', desc: 'No technique. Match two PIN zones to win instantly.' };
+  if (!tKey) return { label: 'No technique', desc: null };
+  return { label: TERTIARY_LABEL[tKey], desc: TERTIARY_DESC[tKey] };
+}
+
+// Hook: tracks which quadrant the cursor is over, given a ref to the card element
+function useCardQuadrant(card, flipped) {
+  const [tooltip, setTooltip] = useState(null);
   const zones = effectiveZones(card, flipped);
 
-  const getTooltip = (zoneM, tKey) => {
-    if (zoneM === 'PIN') return { label: 'PIN', desc: 'No technique. Match two PIN zones to win instantly.' };
-    if (!tKey) return { label: 'No technique', desc: null };
-    return { label: TERTIARY_LABEL[tKey], desc: TERTIARY_DESC[tKey] };
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const isRight = x > rect.width / 2;
+    const isBottom = y > rect.height / 2;
+    const zone = isRight ? zones.right : zones.left;
+    const tKey = isBottom ? zone.tR : zone.tL;
+    setTooltip(getQuadrantTooltip(zone.m, tKey));
   };
 
-  const quadrants = [
-    { zoneM: zones.left.m,  tKey: zones.left.tL,  style: { top: 0,     left: 0,     width: '50%', height: '50%' } },
-    { zoneM: zones.left.m,  tKey: zones.left.tR,  style: { top: '50%', left: 0,     width: '50%', height: '50%' } },
-    { zoneM: zones.right.m, tKey: zones.right.tL, style: { top: 0,     left: '50%', width: '50%', height: '50%' } },
-    { zoneM: zones.right.m, tKey: zones.right.tR, style: { top: '50%', left: '50%', width: '50%', height: '50%' } },
-  ];
+  const handleMouseLeave = () => setTooltip(null);
 
-  return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
-      {quadrants.map((q, i) => {
-        const { label, desc } = getTooltip(q.zoneM, q.tKey);
-        const isActive = activeQ === i;
-        return (
-          <div
-            key={i}
-            style={{ position: 'absolute', ...q.style, pointerEvents: 'auto' }}
-            onMouseEnter={() => setActiveQ(i)}
-            onMouseLeave={() => setActiveQ(null)}
-          >
-            {isActive && (
-              <div className="card-tooltip">
-                <strong>{label}</strong>
-                {desc && <p>{desc}</p>}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+  return { tooltip, handleMouseMove, handleMouseLeave };
 }
 
 // ── Mat card image — absolutely positioned by zoneOffset in the 8-zone grid ──
 
 function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, onPlacedMouseDown }) {
   const zo = entry.zoneOffset ?? 3;
+  const { tooltip, handleMouseMove, handleMouseLeave } = useCardQuadrant(entry.card, entry.flipped);
   return (
     <div
       className={`mat-card-img${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${isPlaced ? ' mat-card-img--placed' : ''}`}
       style={{ left: zo * 200, zIndex: isPlaced ? 10000 : entry.uid }}
       onClick={isPickable ? () => onPick(entry.uid) : undefined}
       onMouseDown={isPlaced ? onPlacedMouseDown : undefined}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
       <CardImg card={entry.card} flipped={entry.flipped} unclipped={isPlaced} />
-      <CardHoverOverlay card={entry.card} flipped={entry.flipped} />
+      {tooltip && (
+        <div className="card-tooltip">
+          <strong>{tooltip.label}</strong>
+          {tooltip.desc && <p>{tooltip.desc}</p>}
+        </div>
+      )}
       <div className="mat-card-num">{index + 1}</div>
       {isProtected && <div className="mat-badge mat-badge--prot">PROT</div>}
       {isPickable && <div className="mat-badge mat-badge--pick">REMOVE</div>}
@@ -361,15 +355,22 @@ function DiscardPile({ discard }) {
 // ── Hand card ─────────────────────────────────────────────────────────────────
 
 function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, onMouseDown, onFlip }) {
-  const zones = effectiveZones(card, flipped);
+  const { tooltip, handleMouseMove, handleMouseLeave } = useCardQuadrant(card, flipped);
   return (
     <div
       className={`hand-card${isSelected ? ' hand-card--sel' : ''}${isDragging ? ' hand-card--dragging' : ''}${isDrawn ? ' hand-card--drawn' : ''}`}
       onClick={onSelect}
       onMouseDown={onMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
       <CardImg card={card} flipped={flipped} unclipped={true} />
-      <CardHoverOverlay card={card} flipped={flipped} />
+      {tooltip && (
+        <div className="card-tooltip">
+          <strong>{tooltip.label}</strong>
+          {tooltip.desc && <p>{tooltip.desc}</p>}
+        </div>
+      )}
       {isSelected && (
         <button
           className="flip-btn"
