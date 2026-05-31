@@ -129,6 +129,7 @@ function getQuadrantTooltip(zoneM, tKey) {
 // Hook: tracks which quadrant the cursor is over, given a ref to the card element
 function useCardQuadrant(card, flipped) {
   const [tooltip, setTooltip] = useState(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
   const zones = effectiveZones(card, flipped);
 
   const handleMouseMove = (e) => {
@@ -140,11 +141,12 @@ function useCardQuadrant(card, flipped) {
     const zone = isRight ? zones.right : zones.left;
     const tKey = isBottom ? zone.tR : zone.tL;
     setTooltip(getQuadrantTooltip(zone.m, tKey));
+    setPos({ x: e.clientX, y: e.clientY });
   };
 
   const handleMouseLeave = () => setTooltip(null);
 
-  return { tooltip, handleMouseMove, handleMouseLeave };
+  return { tooltip, pos, handleMouseMove, handleMouseLeave };
 }
 
 // ── Mat card image — absolutely positioned by zoneOffset in the 8-zone grid ──
@@ -163,7 +165,7 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
     >
       <CardImg card={entry.card} flipped={entry.flipped} unclipped={isPlaced} />
       {tooltip && (
-        <div className="card-tooltip">
+        <div className="card-tooltip" style={{ left: pos.x, top: pos.y - 10, transform: 'translate(-50%, -100%)' }}>
           <strong>{tooltip.label}</strong>
           {tooltip.desc && <p>{tooltip.desc}</p>}
         </div>
@@ -366,7 +368,7 @@ function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, on
     >
       <CardImg card={card} flipped={flipped} unclipped={true} />
       {tooltip && (
-        <div className="card-tooltip">
+        <div className="card-tooltip" style={{ left: pos.x, top: pos.y - 10, transform: 'translate(-50%, -100%)' }}>
           <strong>{tooltip.label}</strong>
           {tooltip.desc && <p>{tooltip.desc}</p>}
         </div>
