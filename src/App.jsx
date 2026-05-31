@@ -705,7 +705,7 @@ function ScoreHeader({ G }) {
 // ── Game board ────────────────────────────────────────────────────────────────
 
 function GameBoard({ G, actions }) {
-  const { selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard } = actions;
+  const { selectCard, selectDiscardCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard } = actions;
   const { phase, matPickMode, message, currentPlayer, players, flags, mat } = G;
   const [dragState, setDragState] = useState(null);
   const matRef = useRef(null);
@@ -967,7 +967,7 @@ export default function App() {
   return (
     <GameBoard
       G={G}
-      actions={{ selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard }}
+      actions={{ selectCard, selectDiscardCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard }}
     />
   );
 }
