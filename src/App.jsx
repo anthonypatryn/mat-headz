@@ -173,7 +173,7 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
   return (
     <div
       className={`mat-card-img${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${isPlaced ? ' mat-card-img--placed' : ''}`}
-      style={{ left: zo * 200, zIndex: isPlaced ? 100 : index + 1 }}
+      style={{ left: zo * 200, zIndex: isPlaced ? 10000 : entry.uid }}
       onClick={isPickable ? () => onPick(entry.uid) : undefined}
       onMouseDown={isPlaced ? onPlacedMouseDown : undefined}
     >
