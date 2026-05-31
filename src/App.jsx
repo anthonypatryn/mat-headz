@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useGame } from './hooks/useGame';
 import { MOVESET_COLOR, TERTIARY_LABEL, TERTIARY_DESC, effectiveZones } from './data/deck';
 import './App.css';
@@ -126,9 +127,9 @@ function getQuadrantTooltip(zoneM, tKey) {
   return { label: TERTIARY_LABEL[tKey], desc: TERTIARY_DESC[tKey] };
 }
 
-// Hook: tracks which quadrant the cursor is over, given a ref to the card element
+// Hook: tracks which quadrant the cursor is over and renders a portal tooltip
 function useCardQuadrant(card, flipped) {
-  const [tooltip, setTooltip] = useState(null);
+  const [state, setState] = useState(null); // { tooltip, x, y }
   const zones = effectiveZones(card, flipped);
 
   const handleMouseMove = (e) => {
@@ -139,19 +140,34 @@ function useCardQuadrant(card, flipped) {
     const isBottom = y > rect.height / 2;
     const zone = isRight ? zones.right : zones.left;
     const tKey = isBottom ? zone.tR : zone.tL;
-    setTooltip(getQuadrantTooltip(zone.m, tKey));
+    setState({ tooltip: getQuadrantTooltip(zone.m, tKey), x: e.clientX, y: e.clientY });
   };
 
-  const handleMouseLeave = () => setTooltip(null);
+  const handleMouseLeave = () => setState(null);
 
-  return { tooltip, handleMouseMove, handleMouseLeave };
+  const tooltipPortal = state ? createPortal(
+    <div className="card-tooltip" style={{
+      position: 'fixed',
+      left: state.x,
+      top: state.y - 12,
+      transform: 'translate(-50%, -100%)',
+      pointerEvents: 'none',
+      zIndex: 99999,
+    }}>
+      <strong>{state.tooltip.label}</strong>
+      {state.tooltip.desc && <p>{state.tooltip.desc}</p>}
+    </div>,
+    document.body
+  ) : null;
+
+  return { tooltipPortal, handleMouseMove, handleMouseLeave };
 }
 
 // ── Mat card image — absolutely positioned by zoneOffset in the 8-zone grid ──
 
 function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, onPlacedMouseDown }) {
   const zo = entry.zoneOffset ?? 3;
-  const { tooltip, handleMouseMove, handleMouseLeave } = useCardQuadrant(entry.card, entry.flipped);
+  const { tooltipPortal, handleMouseMove, handleMouseLeave } = useCardQuadrant(entry.card, entry.flipped);
   return (
     <div
       className={`mat-card-img${isPickable ? ' mat-card-img--pick' : ''}${isProtected ? ' mat-card-img--prot' : ''}${isPlaced ? ' mat-card-img--placed' : ''}`}
@@ -162,12 +178,7 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
       onMouseLeave={handleMouseLeave}
     >
       <CardImg card={entry.card} flipped={entry.flipped} unclipped={isPlaced} />
-      {tooltip && (
-        <div className="card-tooltip">
-          <strong>{tooltip.label}</strong>
-          {tooltip.desc && <p>{tooltip.desc}</p>}
-        </div>
-      )}
+      {tooltipPortal}
       <div className="mat-card-num">{index + 1}</div>
       {isProtected && <div className="mat-badge mat-badge--prot">PROT</div>}
       {isPickable && <div className="mat-badge mat-badge--pick">REMOVE</div>}
@@ -355,7 +366,7 @@ function DiscardPile({ discard }) {
 // ── Hand card ─────────────────────────────────────────────────────────────────
 
 function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, onMouseDown, onFlip }) {
-  const { tooltip, handleMouseMove, handleMouseLeave } = useCardQuadrant(card, flipped);
+  const { tooltipPortal, handleMouseMove, handleMouseLeave } = useCardQuadrant(card, flipped);
   return (
     <div
       className={`hand-card${isSelected ? ' hand-card--sel' : ''}${isDragging ? ' hand-card--dragging' : ''}${isDrawn ? ' hand-card--drawn' : ''}`}
@@ -365,12 +376,7 @@ function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, on
       onMouseLeave={handleMouseLeave}
     >
       <CardImg card={card} flipped={flipped} unclipped={true} />
-      {tooltip && (
-        <div className="card-tooltip">
-          <strong>{tooltip.label}</strong>
-          {tooltip.desc && <p>{tooltip.desc}</p>}
-        </div>
-      )}
+      {tooltipPortal}
       {isSelected && (
         <button
           className="flip-btn"
