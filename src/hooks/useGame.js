@@ -32,6 +32,8 @@ function fresh() {
     hipTossDrawn: null,     // card drawn by Hip Toss awaiting decision
     message: '',
     pendingPlacement: null,  // { prevMat, prevMatSpan, prevPlayers, newMat, newSpan, newPlayers, placement, placed }
+    drawSignal: null,        // { card, source: 'deck'|'discard', id } — triggers draw animation
+    returnSignal: null,      // { card, id } — triggers return-to-deck animation
   };
 }
 
@@ -85,6 +87,7 @@ export function useGame() {
         deck: newDeck,
         selectedIdx: null,
         flipped: false,
+        drawSignal: { card: drawn, source: 'deck', id: uid() },
         message: `${players[currentPlayer].name} — draw done. Choose a card to play.`,
       };
     });
@@ -520,6 +523,7 @@ export function useGame() {
             flags: { ...flags, isBonus: true },
             selectedIdx: null,
             flipped: false,
+            drawSignal: { card: drawn, source: 'deck', id: uid() },
             message: `${p.name} — ENGAGE! Take another turn.`,
           };
         }
@@ -654,6 +658,7 @@ export function useGame() {
               ...prev,
               players: newPlayers,
               deck: newDeck,
+              drawSignal: { card: drawn, source: 'deck', id: uid() },
               pending: { type: 'LOCK_UP_CHOOSE', drawnCard: drawn },
               _actionQueue,
               phase: 'action',
@@ -702,7 +707,7 @@ export function useGame() {
             if (deck.length === 0) return handleRoundEnd(prev);
             const newDeck = [...deck];
             const drawnCard = newDeck.pop();
-            return { ...prev, deck: newDeck, pending: { type: 'HIP_TOSS_DECIDE', drawnCard }, _actionQueue, phase: 'action' };
+            return { ...prev, deck: newDeck, drawSignal: { card: drawnCard, source: 'deck', id: uid() }, pending: { type: 'HIP_TOSS_DECIDE', drawnCard }, _actionQueue, phase: 'action' };
           }
 
           if (action === 'SEATBELT_THROW') {
@@ -745,7 +750,7 @@ export function useGame() {
             i === currentPlayer ? { ...p2, hand: newHand } : p2
           );
           const newDeck = [handCard, ...deck];
-          return nextAction2({ ...prev, players: newPlayers, deck: newDeck, pending: null });
+          return nextAction2({ ...prev, players: newPlayers, deck: newDeck, pending: null, returnSignal: { card: handCard, id: uid() } });
         }
 
         case 'DOUBLE_LEG_CHOOSE': {
@@ -787,7 +792,7 @@ export function useGame() {
               score: scoreCard ? p2.score + 1 : p2.score,
             };
           });
-          return passTo(opponent, { ...prev, players: newPlayers, deck: postDeck, mat: newMat, pending: null, _actionQueue: [] });
+          return passTo(opponent, { ...prev, players: newPlayers, deck: postDeck, mat: newMat, pending: null, _actionQueue: [], drawSignal: { card: drawn, source: 'deck', id: uid() } });
         }
 
         case 'HIP_TOSS_DECIDE': {
