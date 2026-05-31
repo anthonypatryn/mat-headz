@@ -51,8 +51,7 @@ Each zone has:
 - **tL** — Left outer edge tertiary label
 - **tR** — Right outer edge tertiary label
 
-**Inner edges (L.tR and R.tL) are the center strip — visual only, NEVER fire.**  
-Only outer edges fire: **L.tL** (when this card is the rightCard) and **R.tR** (when this card is the leftCard).
+All four edges (L.tL, L.tR, R.tL, R.tR) can fire depending on placement type and which zones are adjacent.
 
 ---
 

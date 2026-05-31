@@ -60,9 +60,9 @@ function previewPlacement(placed, newMat, placement) {
 
 const SECONDARY_PREVIEW = {
   PIN:      '⚡ INSTANT WIN on Confirm!',
-  ENGAGE:   'Draw a card — take another turn',
-  TAKEDOWN: 'Take a point  or  take another turn',
-  ESCAPE:   'No effect — turn ends',
+  ENGAGE:   'Take another turn immediately',
+  TAKEDOWN: 'Choose: gain a point, attempt a pin, or activate technique',
+  ESCAPE:   'No effect',
 };
 
 // ── Card image ────────────────────────────────────────────────────────────────
@@ -106,62 +106,48 @@ function CardImg({ card, flipped, unclipped = false }) {
 }
 
 // ── Zone badge ────────────────────────────────────────────────────────────────
-// compact=true  → small, used in hand cards & modals
-// compact=false → full, used in the mat zone strip (shows description too)
+// Used only in placement preview banner and modals — no technique labels shown.
 
 function ZoneBadge({ zone, side, compact = true }) {
   return (
     <div className={`zone-badge${compact ? '' : ' zone-badge--full'}`} style={{ background: MOVESET_COLOR[zone.m] }}>
       {!compact && side && <span className="zone-side-label">{side}</span>}
       <span className="zone-m">{zone.m}</span>
-      {!compact
-        ? (
-          <div className="zone-tertiaries">
-            <span className="zone-t zone-t--edge">◀ {zone.tL ? TERTIARY_LABEL[zone.tL] : '—'}</span>
-            <span className="zone-t zone-t--edge">{zone.tR ? TERTIARY_LABEL[zone.tR] : '—'} ▶</span>
-          </div>
-        )
-        : (zone.tL || zone.tR) && (
-            <span className="zone-t">{TERTIARY_LABEL[zone.tL || zone.tR]}</span>
-          )
-      }
     </div>
   );
 }
 
-// ── Mat zone strip — full-width bar per card showing both L and R zones ───────
+// ── Card hover overlay — 4 quadrant tooltips ──────────────────────────────────
 
-function MatZoneStrip({ mat }) {
-  if (mat.length === 0) return null;
-  const leftOffset = mat[0].zoneOffset ?? 3;
+function CardHoverOverlay({ card, flipped }) {
+  const zones = effectiveZones(card, flipped);
 
-  // A zone is covered if any OTHER card has a zone at the same mat position.
-  function isCovered(position, uid) {
-    // A zone is covered only if a card placed AFTER it (higher uid = on top) has a zone there
-    return mat.some(e => e.uid > uid &&
-      (e.zoneOffset === position || e.zoneOffset + 1 === position));
-  }
+  const getTooltip = (zoneM, tKey) => {
+    if (zoneM === 'PIN') return { label: 'PIN', desc: 'No technique. Match two PIN zones to win instantly.' };
+    if (!tKey) return { label: 'No technique', desc: null };
+    return { label: TERTIARY_LABEL[tKey], desc: TERTIARY_DESC[tKey] };
+  };
+
+  const quadrants = [
+    { zoneM: zones.left.m,  tKey: zones.left.tL,  style: { top: 0,    left: 0,    width: '50%', height: '50%' } },
+    { zoneM: zones.left.m,  tKey: zones.left.tR,  style: { top: '50%', left: 0,   width: '50%', height: '50%' } },
+    { zoneM: zones.right.m, tKey: zones.right.tL, style: { top: 0,    left: '50%', width: '50%', height: '50%' } },
+    { zoneM: zones.right.m, tKey: zones.right.tR, style: { top: '50%', left: '50%', width: '50%', height: '50%' } },
+  ];
 
   return (
-    <div className="mat-zone-strip">
-      <div className="zone-strip-row" style={{ left: leftOffset * 200 }}>
-        {mat.map((entry) => {
-          const zones = effectiveZones(entry.card, entry.flipped);
-          const leftCovered  = isCovered(entry.zoneOffset,     entry.uid);
-          const rightCovered = isCovered(entry.zoneOffset + 1, entry.uid);
-          const barLeft = (entry.zoneOffset - leftOffset) * 200;
-          return (
-            <div key={entry.uid} className="zone-card-bar" style={{ position: 'absolute', left: barLeft }}>
-              <div className="zone-card-half">
-                {!leftCovered  && <ZoneBadge zone={zones.left}  side="LEFT"  compact={false} />}
-              </div>
-              <div className="zone-card-half">
-                {!rightCovered && <ZoneBadge zone={zones.right} side="RIGHT" compact={false} />}
-              </div>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
+      {quadrants.map((q, i) => {
+        const { label, desc } = getTooltip(q.zoneM, q.tKey);
+        return (
+          <div key={i} className="card-quadrant" style={q.style}>
+            <div className="card-tooltip">
+              <strong>{label}</strong>
+              {desc && <p>{desc}</p>}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -178,6 +164,7 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
       onMouseDown={isPlaced ? onPlacedMouseDown : undefined}
     >
       <CardImg card={entry.card} flipped={entry.flipped} unclipped={isPlaced} />
+      <CardHoverOverlay card={entry.card} flipped={entry.flipped} />
       <div className="mat-card-num">{index + 1}</div>
       {isProtected && <div className="mat-badge mat-badge--prot">PROT</div>}
       {isPickable && <div className="mat-badge mat-badge--pick">REMOVE</div>}
@@ -249,7 +236,6 @@ function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown
       <div className="mat-label">THE MAT — {span} / 8 zones</div>
       <div className="mat-scroll-wrap">
         <div className="mat-grid">
-          <MatZoneStrip mat={mat} />
           <div className="mat-cards-container" ref={matRef}>
             {/* Faint zone dividers */}
             {Array.from({ length: 8 }, (_, i) => (
@@ -374,10 +360,7 @@ function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, on
       onMouseDown={onMouseDown}
     >
       <CardImg card={card} flipped={flipped} unclipped={true} />
-      <div className="hand-card-zones">
-        <ZoneBadge zone={zones.left} />
-        <ZoneBadge zone={zones.right} />
-      </div>
+      <CardHoverOverlay card={card} flipped={flipped} />
       {isSelected && (
         <button
           className="flip-btn"
@@ -639,10 +622,11 @@ function ActionModal({ G, resolveAction }) {
 
 // ── Hand area ─────────────────────────────────────────────────────────────────
 
-function HandArea({ G, selectCard, toggleFlip, takePoint, onCardMouseDown, dragCardIdx, drawnCardIdx, disabled }) {
-  const { players, currentPlayer, selectedIdx, flipped, deck, discard } = G;
+function HandArea({ G, selectCard, toggleFlip, takePoint, selectDiscardCard, onCardMouseDown, dragCardIdx, drawnCardIdx, disabled }) {
+  const { players, currentPlayer, selectedIdx, flipped, deck, discard, flags } = G;
   const p = players[currentPlayer];
   const hasSelected = selectedIdx !== null;
+  const singleLegActive = flags?.singleLeg && discard.length > 0;
 
   return (
     <div className={`hand-area${disabled ? ' hand-area--disabled' : ''}`}>
@@ -670,6 +654,21 @@ function HandArea({ G, selectCard, toggleFlip, takePoint, onCardMouseDown, dragC
               />
             ))}
           </div>
+          {singleLegActive && !disabled && (
+            <div className="single-leg-notice">
+              <strong>Single Leg Shoot:</strong> You may play the top discard card instead.
+              <HandCard
+                card={discard[discard.length - 1]}
+                flipped={false}
+                isSelected={selectedIdx === -1}
+                isDragging={false}
+                isDrawn={false}
+                onSelect={selectDiscardCard}
+                onMouseDown={disabled ? undefined : (e) => onCardMouseDown(-1, e)}
+                onFlip={() => {}}
+              />
+            </div>
+          )}
           {hasSelected && !disabled && (
             <button className="btn btn--point" onClick={takePoint}>
               Discard for Point
@@ -745,6 +744,14 @@ function GameBoard({ G, actions }) {
   const handleCardMouseDown = (cardIdx, e) => {
     if (phase !== 'playing') return;
     e.preventDefault();
+    // cardIdx === -1 means the discard card (Single Leg Shoot)
+    if (cardIdx === -1) {
+      selectDiscardCard();
+      const topDiscard = G.discard[G.discard.length - 1];
+      if (!topDiscard) return;
+      setDragState({ cardIdx: -1, card: topDiscard, flipped: false, x: e.clientX, y: e.clientY });
+      return;
+    }
     selectCard(cardIdx);
     const card = G.players[G.currentPlayer].hand[cardIdx];
     const isAlreadySelected = cardIdx === G.selectedIdx;
@@ -847,6 +854,7 @@ function GameBoard({ G, actions }) {
             selectCard={phase === 'playing' ? selectCard : () => {}}
             toggleFlip={phase === 'playing' ? toggleFlip : () => {}}
             takePoint={phase === 'playing' ? takePoint : () => {}}
+            selectDiscardCard={phase === 'playing' ? selectDiscardCard : () => {}}
             onCardMouseDown={handleCardMouseDown}
             dragCardIdx={dragState?.cardIdx ?? null}
             drawnCardIdx={drawnCardIdx}
@@ -933,7 +941,7 @@ function GameOver({ G, onNewGame }) {
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
+  const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound, selectDiscardCard } = useGame();
   const { phase, players, currentPlayer } = G;
 
   // Auto-init on mount — skip name entry screen

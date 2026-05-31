@@ -21,8 +21,8 @@ export const DECK = [
 
 export const TERTIARY_LABEL = {
   LOCK_UP:          'Lock Up',
-  SINGLE_LEG:       'Single Leg',
-  DOUBLE_LEG:       'Double Leg',
+  SINGLE_LEG:       'Single Leg Shoot',
+  DOUBLE_LEG:       'Double Leg Shoot',
   FIREMANS_CARRY:   "Fireman's Carry",
   ARM_DRAG:         'Arm Drag',
   HIP_TOSS:         'Hip Toss',
@@ -31,14 +31,14 @@ export const TERTIARY_LABEL = {
 };
 
 export const TERTIARY_DESC = {
-  LOCK_UP:          'Draw a card. Put 1 card from hand on the bottom of the deck.',
-  SINGLE_LEG:       'Draw an extra card on your bonus turn. Keep 2 cards in hand for the rest of the round.',
-  DOUBLE_LEG:       'Remove any card from the mat and place it face-up beside the draw pile. It cannot be covered.',
-  FIREMANS_CARRY:   'Opponent skips their next turn. Start a new turn.',
-  ARM_DRAG:         'Play your other card from hand onto the mat, then draw 1. Then take a point like normal.',
-  HIP_TOSS:         'Draw a card. If you can play a legal PIN from your hand, do so now. Otherwise, use it as a point.',
-  SEATBELT_THROW:   'Draw a card. If it has a PIN zone — you win!',
-  REVERSAL:         'Take a point (draw a card face-down into your score pile).',
+  LOCK_UP:          'Draw 1 additional card, then place 1 card from your hand on the bottom of the deck.',
+  SINGLE_LEG:       'Instead of playing a card from your hand, you may play the top card of the discard pile, if able.',
+  DOUBLE_LEG:       'Remove 1 uncovered card from the mat and place it face up into the discard pile.',
+  FIREMANS_CARRY:   'Your opponent skips their next turn. You immediately begin a new turn.',
+  ARM_DRAG:         'Play your second card from hand immediately, then draw 1 card. Afterward, gain 1 point normally by placing the top card of the draw pile face down into your score pile.',
+  HIP_TOSS:         'Draw 1 card. If it can legally create a Pin Pair, play it immediately. Otherwise, place it face down into your score pile.',
+  SEATBELT_THROW:   'Reveal the top card of the deck. If it contains a Pin Zone, you immediately win the game.',
+  REVERSAL:         'Gain 1 point by drawing the top card of the deck and placing it face down into your score pile.',
 };
 
 export const MOVESET_COLOR = {

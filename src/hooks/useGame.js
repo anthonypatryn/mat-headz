@@ -22,7 +22,7 @@ function fresh() {
     flags: {
       hasEngaged: false,    // Engage pair triggered this turn chain
       isBonus: false,       // currently on a bonus turn from Engage
-      bonusHand: false,     // Single Leg Takedown: keep 2 cards in hand
+      singleLeg: false,     // Single Leg Shoot: may play top discard instead of hand card
       skipNext: false,      // Fireman's Carry: opponent skips
     },
     selectedIdx: null,      // index in current player's hand
@@ -135,6 +135,16 @@ export function useGame() {
     });
   }
 
+  // ─── SELECT DISCARD CARD (Single Leg Shoot) ───────────────────────────────
+
+  function selectDiscardCard() {
+    setG(prev => {
+      if (!prev.flags.singleLeg || prev.discard.length === 0) return prev;
+      // Select the top discard card — use index -1 as the sentinel
+      return { ...prev, selectedIdx: -1, flipped: false };
+    });
+  }
+
   // ─── PLAY TO MAT ──────────────────────────────────────────────────────────
 
   function playToMat(placement) {
@@ -147,8 +157,11 @@ export function useGame() {
       if (selectedIdx === null) return prev;
 
       const p = players[currentPlayer];
-      const card = p.hand[selectedIdx];
-      const newHand = p.hand.filter((_, i) => i !== selectedIdx);
+      // selectedIdx === -1 means playing top card of discard (Single Leg Shoot)
+      const isFromDiscard = selectedIdx === -1;
+      const card = isFromDiscard ? discard[discard.length - 1] : p.hand[selectedIdx];
+      const newHand = isFromDiscard ? p.hand : p.hand.filter((_, i) => i !== selectedIdx);
+      const newDiscard = isFromDiscard ? discard.slice(0, -1) : discard;
       const newPlayers = players.map((p2, i) =>
         i === currentPlayer ? { ...p2, hand: newHand } : p2
       );
@@ -245,15 +258,18 @@ export function useGame() {
       return {
         ...prev,
         players: newPlayers,
+        discard: newDiscard,
         mat: newMat,
         matSpan: newSpan,
         selectedIdx: null,
         flipped: false,
+        flags: { ...flags, singleLeg: false },
         phase: 'placed',
         pendingPlacement: {
           prevMat: mat,
           prevMatSpan: matSpan || 0,
           prevPlayers: players,
+          prevDiscard: discard,
           prevSelectedIdx: selectedIdx,
           newMat,
           newSpan,
@@ -364,14 +380,15 @@ export function useGame() {
     setG(prev => {
       const { pendingPlacement } = prev;
       if (!pendingPlacement) return prev;
-      const { prevMat, prevMatSpan, prevPlayers, prevSelectedIdx, placed } = pendingPlacement;
+      const { prevMat, prevMatSpan, prevPlayers, prevDiscard, prevSelectedIdx, placed } = pendingPlacement;
       return {
         ...prev,
         mat: prevMat,
         matSpan: prevMatSpan,
         players: prevPlayers,
-        selectedIdx: prevSelectedIdx,   // restore original selection so card is re-selectable
-        flipped: placed.flipped,        // preserve any flip the player made
+        discard: prevDiscard ?? prev.discard,
+        selectedIdx: prevSelectedIdx,
+        flipped: placed.flipped,
         phase: 'playing',
         pendingPlacement: null,
         message: '',
@@ -489,12 +506,7 @@ export function useGame() {
           if (deck.length === 0) return handleRoundEnd(prev);
           const newDeck = [...deck];
           const drawn = newDeck.pop();
-          let newHand = [...p.hand, drawn];
-          // Single leg: draw an extra card
-          if (flags.bonusHand && deck.length > 0) {
-            const extra = newDeck.pop();
-            newHand = [...newHand, extra];
-          }
+          const newHand = [...p.hand, drawn];
           const newPlayers = players.map((p2, i) =>
             i === currentPlayer ? { ...p2, hand: newHand } : p2
           );
@@ -649,7 +661,8 @@ export function useGame() {
           }
 
           if (action === 'SINGLE_LEG') {
-            return nextAction2({ ...prev, flags: { ...flags, bonusHand: true }, pending: null });
+            // Player may play top card of discard pile instead of a hand card this turn
+            return nextAction2({ ...prev, flags: { ...flags, singleLeg: true }, pending: null });
           }
 
           if (action === 'DOUBLE_LEG') {
@@ -847,9 +860,22 @@ export function useGame() {
 
   // ─── MAT CARD PICK ────────────────────────────────────────────────────────
 
+  function isCardUncovered(entry, mat) {
+    const lp = entry.zoneOffset, rp = entry.zoneOffset + 1;
+    return !mat.some(e =>
+      e.uid > entry.uid &&
+      (e.zoneOffset === lp || e.zoneOffset + 1 === lp ||
+       e.zoneOffset === rp || e.zoneOffset + 1 === rp)
+    );
+  }
+
   function pickMatCard(matUid) {
     setG(prev => {
       if (prev.matPickMode === 'double_leg') {
+        const entry = prev.mat.find(e => e.uid === matUid);
+        if (!entry || !isCardUncovered(entry, prev.mat)) {
+          return { ...prev, message: 'That card is covered — only uncovered cards can be removed.' };
+        }
         return resolveActionDirect(prev, { type: 'DOUBLE_LEG_CHOOSE' }, matUid);
       }
       return prev;
@@ -918,7 +944,7 @@ export function useGame() {
   }
 
   function resetFlags(flags) {
-    return { hasEngaged: false, isBonus: false, bonusHand: flags.bonusHand, skipNext: false };
+    return { hasEngaged: false, isBonus: false, singleLeg: false, skipNext: false };
   }
 
   function handleRoundEnd(state) {
@@ -982,6 +1008,7 @@ export function useGame() {
     cancelPlacement,
     flipPlacedCard,
     selectCard,
+    selectDiscardCard,
     toggleFlip,
     playToMat,
     takePoint,
