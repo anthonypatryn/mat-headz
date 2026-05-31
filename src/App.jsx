@@ -137,17 +137,16 @@ function CardHoverOverlay({ card, flipped }) {
   ];
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 50 }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
       {quadrants.map((q, i) => {
         const { label, desc } = getTooltip(q.zoneM, q.tKey);
         const isActive = activeQ === i;
         return (
           <div
             key={i}
-            style={{ position: 'absolute', ...q.style }}
+            style={{ position: 'absolute', ...q.style, pointerEvents: 'auto' }}
             onMouseEnter={() => setActiveQ(i)}
             onMouseLeave={() => setActiveQ(null)}
-            onMouseDown={e => e.stopPropagation()}
           >
             {isActive && (
               <div className="card-tooltip">
