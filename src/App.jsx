@@ -870,6 +870,9 @@ function GameBoard({ G, actions }) {
     const cardIdx = G.players[G.currentPlayer].hand.length - 1;
     setAnimatingHandIdx(cardIdx); // hide the card placeholder in hand
 
+    // Play draw sound
+    new Audio('/sounds/card-draw.mp3').play().catch(() => {});
+
     // Wait for DOM to render the invisible hand card, then read its position
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const src = G.drawSignal.source === 'discard'
