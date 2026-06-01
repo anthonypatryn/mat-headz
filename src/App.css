@@ -344,7 +344,7 @@
 }
 
 /* Temporary testing: different bg per player */
-.game-board--p1 { background: #0d1a0d; }
+.game-board--p1 { background: #1a0d0d; }
 .game-board--p2 { background: #0d0d1a; }
 
 .game-msg {
