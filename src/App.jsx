@@ -164,78 +164,91 @@ function useCardQuadrant(card, flipped) {
 // ── Draw animation ────────────────────────────────────────────────────────────
 
 function DrawAnimation({ card, fromX, fromY, toX, toY, faceUp, onDone }) {
-  const [arrived, setArrived] = useState(false);
-  const [flipped, setFlipped] = useState(faceUp); // face-up from discard stays face-up
+  const [flipped, setFlipped] = useState(faceUp);
+
+  const dx = toX - fromX;
+  const dy = toY - fromY;
 
   useEffect(() => {
-    // Move to destination after one frame
-    const moveTimer = requestAnimationFrame(() => requestAnimationFrame(() => setArrived(true)));
-    // Flip face-up at 70% of 600ms = 420ms (only for deck draws)
-    let flipTimer;
-    if (!faceUp) flipTimer = setTimeout(() => setFlipped(true), 420);
-    return () => {
-      cancelAnimationFrame(moveTimer);
-      clearTimeout(flipTimer);
-    };
+    if (!faceUp) {
+      const t = setTimeout(() => setFlipped(true), 520); // flip at ~65% of 800ms
+      return () => clearTimeout(t);
+    }
   }, []);
 
-  const w = 200, h = 143;
-  const style = {
-    position: 'fixed',
-    left: arrived ? toX : fromX,
-    top: arrived ? toY : fromY,
-    width: w,
-    height: h,
-    transform: 'translate(-50%, -50%)',
-    transition: 'left 0.6s ease, top 0.6s ease',
-    zIndex: 99998,
-    pointerEvents: 'none',
-    borderRadius: 6,
-    overflow: 'hidden',
-  };
+  const cardBack = (
+    <img src="/Cards/Back.png" alt="" style={{
+      width: 286, height: 400, position: 'absolute',
+      top: '50%', left: '50%',
+      transform: 'translate(-50%,-50%) rotate(-90deg)',
+      objectFit: 'cover', borderRadius: 4,
+    }} />
+  );
 
   return createPortal(
-    <div style={style} onTransitionEnd={onDone}>
-      {flipped
-        ? <CardImg card={card} flipped={false} />
-        : <img src="/Cards/Back.png" alt="" style={{ width: h, height: w, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) rotate(-90deg)', objectFit: 'cover' }} />
-      }
+    <div
+      style={{
+        position: 'fixed',
+        left: fromX,
+        top: fromY,
+        width: 400,
+        height: 286,
+        transform: 'translate(-50%, -50%)',
+        zIndex: 99997,
+        pointerEvents: 'none',
+        borderRadius: 6,
+        overflow: 'hidden',
+        '--dx': `${dx}px`,
+        '--dy': `${dy}px`,
+        animation: 'card-fly-to-hand 0.8s cubic-bezier(0.3, 0, 0.2, 1) forwards',
+      }}
+      onAnimationEnd={onDone}
+    >
+      {flipped ? <CardImg card={card} flipped={false} /> : cardBack}
     </div>,
     document.body
   );
 }
 
 function ReturnAnimation({ card, fromX, fromY, toX, toY, onDone }) {
-  const [arrived, setArrived] = useState(false);
-  const [flipped, setFlipped] = useState(false); // starts face-up in hand, flips face-down at 30%
+  const [flipped, setFlipped] = useState(false);
+  const dx = toX - fromX;
+  const dy = toY - fromY;
 
   useEffect(() => {
-    const moveTimer = requestAnimationFrame(() => requestAnimationFrame(() => setArrived(true)));
-    const flipTimer = setTimeout(() => setFlipped(true), 180); // flip at 30% of 600ms
-    return () => { cancelAnimationFrame(moveTimer); clearTimeout(flipTimer); };
+    const t = setTimeout(() => setFlipped(true), 240); // flip at 30% of 800ms
+    return () => clearTimeout(t);
   }, []);
 
-  const w = 200, h = 143;
-  const style = {
-    position: 'fixed',
-    left: arrived ? toX : fromX,
-    top: arrived ? toY : fromY,
-    width: w,
-    height: h,
-    transform: 'translate(-50%, -50%)',
-    transition: 'left 0.6s ease, top 0.6s ease',
-    zIndex: 99998,
-    pointerEvents: 'none',
-    borderRadius: 6,
-    overflow: 'hidden',
-  };
+  const cardBack = (
+    <img src="/Cards/Back.png" alt="" style={{
+      width: 286, height: 400, position: 'absolute',
+      top: '50%', left: '50%',
+      transform: 'translate(-50%,-50%) rotate(-90deg)',
+      objectFit: 'cover', borderRadius: 4,
+    }} />
+  );
 
   return createPortal(
-    <div style={style} onTransitionEnd={onDone}>
-      {flipped
-        ? <img src="/Cards/Back.png" alt="" style={{ width: h, height: w, position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) rotate(-90deg)', objectFit: 'cover' }} />
-        : <CardImg card={card} flipped={false} />
-      }
+    <div
+      style={{
+        position: 'fixed',
+        left: fromX,
+        top: fromY,
+        width: 400,
+        height: 286,
+        transform: 'translate(-50%, -50%)',
+        zIndex: 99997,
+        pointerEvents: 'none',
+        borderRadius: 6,
+        overflow: 'hidden',
+        '--dx': `${dx}px`,
+        '--dy': `${dy}px`,
+        animation: 'card-return-to-deck 0.8s cubic-bezier(0.3, 0, 0.2, 1) forwards',
+      }}
+      onAnimationEnd={onDone}
+    >
+      {flipped ? cardBack : <CardImg card={card} flipped={false} />}
     </div>,
     document.body
   );
@@ -443,11 +456,12 @@ function DiscardPile({ discard }) {
 
 // ── Hand card ─────────────────────────────────────────────────────────────────
 
-function HandCard({ card, flipped, isSelected, isDragging, isDrawn, onSelect, onMouseDown, onFlip }) {
+function HandCard({ card, flipped, isSelected, isDragging, isDrawn, isAnimating, onSelect, onMouseDown, onFlip }) {
   const { tooltipPortal, handleMouseMove, handleMouseLeave } = useCardQuadrant(card, flipped);
   return (
     <div
       className={`hand-card${isSelected ? ' hand-card--sel' : ''}${isDragging ? ' hand-card--dragging' : ''}${isDrawn ? ' hand-card--drawn' : ''}`}
+      style={isAnimating ? { visibility: 'hidden' } : undefined}
       onClick={onSelect}
       onMouseDown={onMouseDown}
       onMouseMove={handleMouseMove}
@@ -716,7 +730,7 @@ function ActionModal({ G, resolveAction }) {
 
 // ── Hand area ─────────────────────────────────────────────────────────────────
 
-function HandArea({ G, selectCard, toggleFlip, takePoint, selectDiscardCard, onCardMouseDown, dragCardIdx, drawnCardIdx, disabled }) {
+function HandArea({ G, selectCard, toggleFlip, takePoint, selectDiscardCard, onCardMouseDown, dragCardIdx, drawnCardIdx, animatingHandIdx, disabled }) {
   const { players, currentPlayer, selectedIdx, flipped, deck, discard, flags } = G;
   const p = players[currentPlayer];
   const hasSelected = selectedIdx !== null;
@@ -742,6 +756,7 @@ function HandArea({ G, selectCard, toggleFlip, takePoint, selectDiscardCard, onC
                 isSelected={i === selectedIdx}
                 isDragging={dragCardIdx === i}
                 isDrawn={i === drawnCardIdx}
+                isAnimating={i === animatingHandIdx}
                 onSelect={() => selectCard(i)}
                 onMouseDown={disabled ? undefined : (e) => onCardMouseDown(i, e)}
                 onFlip={toggleFlip}
@@ -822,41 +837,55 @@ function GameBoard({ G, actions }) {
   // ── Draw / return animations ──────────────────────────────────────────────
   const [drawAnim, setDrawAnim] = useState(null);
   const [returnAnim, setReturnAnim] = useState(null);
+  const [animatingHandIdx, setAnimatingHandIdx] = useState(null); // hide this hand card while animating
   const prevDrawSignalId = useRef(null);
   const prevReturnSignalId = useRef(null);
 
   useEffect(() => {
     if (!G.drawSignal || G.drawSignal.id === prevDrawSignalId.current) return;
     prevDrawSignalId.current = G.drawSignal.id;
-    const src = G.drawSignal.source === 'discard' ? document.querySelector('.deck-pile + .deck-pile') : document.querySelector('.deck-pile');
-    const dest = document.querySelector('.hand-cards');
-    if (!src || !dest) return;
-    const srcRect = src.getBoundingClientRect();
-    const destRect = dest.getBoundingClientRect();
-    setDrawAnim({
-      card: G.drawSignal.card,
-      faceUp: G.drawSignal.source === 'discard',
-      fromX: srcRect.left + srcRect.width / 2,
-      fromY: srcRect.top + srcRect.height / 2,
-      toX: destRect.left + destRect.width / 2,
-      toY: destRect.top + destRect.height / 2,
-    });
+
+    const cardIdx = G.players[G.currentPlayer].hand.length - 1;
+    setAnimatingHandIdx(cardIdx); // hide the card placeholder in hand
+
+    // Wait for DOM to render the invisible hand card, then read its position
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const src = G.drawSignal.source === 'discard'
+        ? document.querySelector('.deck-pile + .deck-pile')
+        : document.querySelector('.deck-pile');
+      const handCards = document.querySelectorAll('.hand-card');
+      const dest = handCards[cardIdx];
+      if (!src || !dest) { setAnimatingHandIdx(null); return; }
+
+      const srcRect = src.getBoundingClientRect();
+      const destRect = dest.getBoundingClientRect();
+      setDrawAnim({
+        card: G.drawSignal.card,
+        faceUp: G.drawSignal.source === 'discard',
+        fromX: srcRect.left + srcRect.width / 2,
+        fromY: srcRect.top + srcRect.height / 2,
+        toX: destRect.left + destRect.width / 2,
+        toY: destRect.top + destRect.height / 2,
+      });
+    }));
   }, [G.drawSignal]);
 
   useEffect(() => {
     if (!G.returnSignal || G.returnSignal.id === prevReturnSignalId.current) return;
     prevReturnSignalId.current = G.returnSignal.id;
-    const dest = document.querySelector('.deck-pile');
-    const src = document.querySelector('.hand-cards');
-    if (!src || !dest) return;
-    const srcRect = src.getBoundingClientRect();
-    const destRect = dest.getBoundingClientRect();
+    const deck = document.querySelector('.deck-pile');
+    const handCards = document.querySelectorAll('.hand-card');
+    if (!deck || !handCards.length) return;
+    const deckRect = deck.getBoundingClientRect();
+    // Animate from the last hand card position (the one being returned)
+    const lastCard = handCards[handCards.length - 1];
+    const srcRect = lastCard.getBoundingClientRect();
     setReturnAnim({
       card: G.returnSignal.card,
       fromX: srcRect.left + srcRect.width / 2,
       fromY: srcRect.top + srcRect.height / 2,
-      toX: destRect.left + destRect.width / 2,
-      toY: destRect.top + destRect.height / 2,
+      toX: deckRect.left + deckRect.width / 2,
+      toY: deckRect.top + deckRect.height / 2,
     });
   }, [G.returnSignal]);
 
@@ -993,6 +1022,7 @@ function GameBoard({ G, actions }) {
             onCardMouseDown={handleCardMouseDown}
             dragCardIdx={dragState?.cardIdx ?? null}
             drawnCardIdx={drawnCardIdx}
+            animatingHandIdx={animatingHandIdx}
             disabled={phase === 'placed'}
           />
         </>
@@ -1031,7 +1061,7 @@ function GameBoard({ G, actions }) {
           toX={drawAnim.toX}
           toY={drawAnim.toY}
           faceUp={drawAnim.faceUp}
-          onDone={() => setDrawAnim(null)}
+          onDone={() => { setDrawAnim(null); setAnimatingHandIdx(null); }}
         />
       )}
 
