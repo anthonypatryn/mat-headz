@@ -886,6 +886,46 @@
   gap: 8px;
 }
 
+.placed-actions-match {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 500px;
+}
+
+.placed-flip {
+  align-self: flex-start;
+}
+
+.match-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.both-sides-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.both-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.both-side-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.turn-tag--warn {
+  color: #f0c040;
+}
+
 /* ── Placement preview — shows what Confirm will trigger ─────────────────── */
 
 .placement-preview {

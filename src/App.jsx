@@ -346,9 +346,67 @@ function PlacementPreview({ preview }) {
   );
 }
 
+// ── Placement action buttons ──────────────────────────────────────────────────
+
+function PlacementActions({ preview, onAction, onFlip, armDrag }) {
+  const renderButtons = (pair) => {
+    const { moveset, tertiaryKey } = pair;
+    if (moveset === 'PIN') return (
+      <button className="btn btn--danger btn--lg" onClick={() => onAction('pin_win')}>⚡ INSTANT WIN — Confirm</button>
+    );
+    if (moveset === 'ENGAGE') return (<>
+      <button className="btn btn--primary" onClick={() => onAction('engage')}>Take Another Turn</button>
+      {tertiaryKey && <button className="btn btn--outline" onClick={() => onAction(`engage:${tertiaryKey}`)}>✦ Activate {TERTIARY_LABEL[tertiaryKey]}</button>}
+    </>);
+    if (moveset === 'TAKEDOWN') return (<>
+      <button className="btn btn--primary" onClick={() => onAction('takedown:point')}>Gain 1 Point</button>
+      <button className="btn btn--secondary" onClick={() => onAction('takedown:pin')}>Attempt a Pin</button>
+      {tertiaryKey && <button className="btn btn--outline" onClick={() => onAction(`takedown:${tertiaryKey}`)}>✦ Activate {TERTIARY_LABEL[tertiaryKey]}</button>}
+    </>);
+    if (moveset === 'ESCAPE') return (<>
+      <button className="btn btn--primary" onClick={() => onAction('escape')}>End Turn</button>
+      {tertiaryKey === 'REVERSAL' && <button className="btn btn--outline" onClick={() => onAction('escape:REVERSAL')}>✦ Reversal (+1 Point)</button>}
+    </>);
+    return <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>;
+  };
+
+  // ARM DRAG mode: no actions, just confirm placement
+  if (armDrag) return (
+    <div className="placed-actions-match">
+      <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
+      <button className="btn btn--primary" onClick={() => onAction('arm_drag_done')}>✓ Place Card (Arm Drag)</button>
+    </div>
+  );
+
+  if (!preview || (!preview.left && !preview.right)) return (
+    <div className="placed-actions">
+      <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
+      <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>
+    </div>
+  );
+
+  if (preview.left && preview.right) return (
+    <div className="placed-actions-match">
+      <button className="btn btn--outline placed-flip" onClick={onFlip}>↻ Flip</button>
+      <div className="both-sides-actions">
+        <div className="both-side"><div className="both-side-label">Left Side</div>{renderButtons(preview.left)}</div>
+        <div className="both-side"><div className="both-side-label">Right Side</div>{renderButtons(preview.right)}</div>
+      </div>
+    </div>
+  );
+
+  const pair = preview.left || preview.right;
+  return (
+    <div className="placed-actions-match">
+      <button className="btn btn--outline placed-flip" onClick={onFlip}>↻ Flip</button>
+      <div className="match-actions">{renderButtons(pair)}</div>
+    </div>
+  );
+}
+
 // ── Mat ───────────────────────────────────────────────────────────────────────
 
-function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown }) {
+function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown, onConfirmWithAction }) {
   const { mat, protectedUids, matPickMode, matSpan, phase, pendingPlacement } = G;
   const span = matSpan ?? mat.length * 2;
   const placedUid = phase === 'placed' && pendingPlacement ? pendingPlacement.placed.uid : null;
@@ -392,17 +450,16 @@ function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown
                   <span className="ringout-warning__msg">⚠️ RING OUT — this placement clears the entire mat!</span>
                   <div className="placed-actions">
                     <button className="btn btn--outline" onClick={onCancel}>← Go Back</button>
-                    <button className="btn btn--danger" onClick={onConfirm}>Proceed with Ring Out</button>
+                    <button className="btn btn--danger" onClick={() => onConfirmWithAction('ring_out')}>Proceed with Ring Out</button>
                   </div>
                 </div>
               ) : (
-                <>
-                  <div className="placed-actions">
-                    <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
-                    <button className="btn btn--primary" onClick={onConfirm}>✓ Confirm</button>
-                  </div>
-                  {preview && <PlacementPreview preview={preview} />}
-                </>
+                <PlacementActions
+                  preview={preview}
+                  onAction={onConfirmWithAction}
+                  onFlip={onFlip}
+                  armDrag={G.flags?.armDrag}
+                />
               )}
             </div>
           )}
@@ -614,6 +671,31 @@ function ActionModal({ G, resolveAction }) {
             )}
             <button className="btn btn--secondary" onClick={() => resolveAction('point')}>
               Use as Point
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === 'PIN_REVEAL') {
+    const { card, mode } = pending;
+    const skipLabel = mode === 'hip_toss' ? 'To Score Pile' : 'Discard — End Turn';
+    return (
+      <div className="modal-overlay">
+        <div className="modal">
+          <h3>{mode === 'hip_toss' ? 'HIP TOSS' : 'ATTEMPT A PIN'} — Revealed Card:</h3>
+          <CardImg card={card} flipped={false} />
+          <div className="modal-zones-row">
+            <ZoneBadge zone={card.L} />
+            <ZoneBadge zone={card.R} />
+          </div>
+          <div className="modal-btns">
+            <button className="btn btn--primary" onClick={() => resolveAction('place')}>
+              Place It! (PIN only fires)
+            </button>
+            <button className="btn btn--secondary" onClick={() => resolveAction('skip')}>
+              {skipLabel}
             </button>
           </div>
         </div>
@@ -836,7 +918,7 @@ function ScoreHeader({ G }) {
 // ── Game board ────────────────────────────────────────────────────────────────
 
 function GameBoard({ G, actions }) {
-  const { selectCard, selectDiscardCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard } = actions;
+  const { selectCard, selectDiscardCard, confirmWithAction, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard } = actions;
   const { phase, matPickMode, message, currentPlayer, players, flags, mat } = G;
   const [dragState, setDragState] = useState(null);
   const matRef = useRef(null);
@@ -1029,6 +1111,7 @@ function GameBoard({ G, actions }) {
         onCancel={cancelPlacement}
         onFlip={flipPlacedCard}
         onPlacedMouseDown={handlePlacedCardMouseDown}
+        onConfirmWithAction={actions.confirmWithAction}
       />
 
       {(phase === 'playing' || phase === 'placed') && (
@@ -1036,7 +1119,8 @@ function GameBoard({ G, actions }) {
           <div className="turn-bar">
             {players[currentPlayer].name}'s Turn
             {flags.isBonus && <span className="turn-tag"> · BONUS TURN</span>}
-            {flags.bonusHand && <span className="turn-tag"> · SINGLE LEG ACTIVE</span>}
+            {flags.singleLeg && <span className="turn-tag"> · SINGLE LEG ACTIVE</span>}
+            {flags.armDrag && <span className="turn-tag turn-tag--warn"> · ARM DRAG: Place your card</span>}
           </div>
           <HandArea
             G={G}
@@ -1158,7 +1242,7 @@ function GameOver({ G, onNewGame }) {
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound, selectDiscardCard } = useGame();
+  const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard, selectCard, selectDiscardCard, confirmWithAction, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound } = useGame();
   const { phase, players, currentPlayer } = G;
 
   // Set up Web Audio API — unlock on first gesture, then play reliably from anywhere
@@ -1215,7 +1299,7 @@ export default function App() {
   return (
     <GameBoard
       G={G}
-      actions={{ selectCard, selectDiscardCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard }}
+      actions={{ selectCard, selectDiscardCard, confirmWithAction, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard }}
     />
   );
 }
