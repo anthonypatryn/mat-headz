@@ -26,6 +26,7 @@ function fresh() {
       skipNext: false,      // Fireman's Carry: opponent skips
       armDrag: false,       // Arm Drag: next placement goes to mat silently, then aftermath
       pinPlace: false,      // Pin Place: only PIN pair fires on next placement
+      hasTakenDown: false,  // Takedown pair was fired this chain (unlocks PIN win)
     },
     selectedIdx: null,      // index in current player's hand
     flipped: false,         // flip state of card about to be placed
@@ -496,8 +497,9 @@ export function useGame() {
       // No pair / end turn
       if (!choice || choice === 'end') return endOrContinue(baseState);
 
-      // PIN instant win
+      // PIN instant win — requires hasTakenDown in this chain
       if (choice === 'pin_win') {
+        if (!flags.hasTakenDown) return endOrContinue(baseState); // chain broken
         return { ...baseState, phase: 'gameOver', message: `${newPlayers[currentPlayer].name} made a PIN — INSTANT WIN!`, winner: currentPlayer };
       }
 
@@ -550,10 +552,11 @@ export function useGame() {
       // ── TAKEDOWN ─────────────────────────────────────────────────────────────
 
       if (choice === 'takedown:point') {
+        if (!flags.hasEngaged) return endOrContinue(baseState); // requires prior ENGAGE
         const drawn = drawOne(baseState, deck);
         if (!drawn) return handleRoundEnd(baseState);
         const ps = newPlayers.map((pl, i) => i === currentPlayer ? { ...pl, scorePile: [...pl.scorePile, drawn.card], score: pl.score + 1 } : pl);
-        return passTo(opponent, { ...baseState, players: ps, deck: drawn.deck });
+        return passTo(opponent, { ...baseState, players: ps, deck: drawn.deck, flags: { ...flags, hasTakenDown: true } });
       }
 
       const matHasPIN = (checkMat) => checkMat.some(e => {
@@ -564,46 +567,49 @@ export function useGame() {
       });
 
       if (choice === 'takedown:pin') {
+        if (!flags.hasEngaged) return endOrContinue(baseState); // requires prior ENGAGE
         const drawn = drawOne(baseState, deck);
         if (!drawn) return handleRoundEnd(baseState);
         if (!hasPinZone(drawn.card) || !matHasPIN(newMat)) {
-          return passTo(opponent, { ...baseState, deck: drawn.deck, discard: [...discard, drawn.card] });
+          return passTo(opponent, { ...baseState, deck: drawn.deck, discard: [...discard, drawn.card], flags: { ...flags, hasTakenDown: true } });
         }
-        return { ...baseState, deck: drawn.deck, phase: 'action', pending: { type: 'PIN_REVEAL', card: drawn.card, mode: 'attempt_pin' } };
+        return { ...baseState, deck: drawn.deck, flags: { ...flags, hasTakenDown: true }, phase: 'action', pending: { type: 'PIN_REVEAL', card: drawn.card, mode: 'attempt_pin' } };
       }
 
       if (choice.startsWith('takedown:')) {
+        if (!flags.hasEngaged) return endOrContinue(baseState); // requires prior ENGAGE
         const technique = choice.split(':')[1];
+        const tdBase = { ...baseState, flags: { ...flags, hasTakenDown: true } };
 
         if (technique === 'FIREMANS_CARRY') {
-          const drawn = drawOne(baseState, deck);
-          if (!drawn) return handleRoundEnd(baseState);
+          const drawn = drawOne(tdBase, deck);
+          if (!drawn) return handleRoundEnd(tdBase);
           const ps = newPlayers.map((pl, i) => i === currentPlayer ? { ...pl, hand: [...pl.hand, drawn.card] } : pl);
-          return { ...baseState, players: ps, deck: drawn.deck, phase: 'playing', flags: { ...flags, skipNext: true }, drawSignal: { card: drawn.card, source: 'deck', id: uid() }, message: `FIREMAN'S CARRY! ${newPlayers[opponent].name} skips their next turn.` };
+          return { ...tdBase, players: ps, deck: drawn.deck, phase: 'playing', flags: { ...flags, hasTakenDown: true, skipNext: true }, drawSignal: { card: drawn.card, source: 'deck', id: uid() }, message: `FIREMAN'S CARRY! ${newPlayers[opponent].name} skips their next turn.` };
         }
 
         if (technique === 'ARM_DRAG') {
-          if (p.hand.length < 1) return passTo(opponent, baseState);
-          return { ...baseState, phase: 'playing', pending: null, _actionQueue: [], flags: { ...flags, armDrag: true }, message: 'ARM DRAG — Place your remaining card on the mat.' };
+          if (p.hand.length < 1) return passTo(opponent, tdBase);
+          return { ...tdBase, phase: 'playing', pending: null, _actionQueue: [], flags: { ...flags, hasTakenDown: true, armDrag: true }, message: 'ARM DRAG — Place your remaining card on the mat.' };
         }
 
         if (technique === 'HIP_TOSS') {
-          const drawn = drawOne(baseState, deck);
-          if (!drawn) return handleRoundEnd(baseState);
+          const drawn = drawOne(tdBase, deck);
+          if (!drawn) return handleRoundEnd(tdBase);
           if (!hasPinZone(drawn.card) || !matHasPIN(newMat)) {
             const ps = newPlayers.map((pl, i) => i === currentPlayer ? { ...pl, scorePile: [...pl.scorePile, drawn.card], score: pl.score + 1 } : pl);
-            return passTo(opponent, { ...baseState, players: ps, deck: drawn.deck });
+            return passTo(opponent, { ...tdBase, players: ps, deck: drawn.deck });
           }
-          return { ...baseState, deck: drawn.deck, phase: 'action', pending: { type: 'PIN_REVEAL', card: drawn.card, mode: 'hip_toss' } };
+          return { ...tdBase, deck: drawn.deck, phase: 'action', pending: { type: 'PIN_REVEAL', card: drawn.card, mode: 'hip_toss' } };
         }
 
         if (technique === 'SEATBELT_THROW') {
-          const drawn = drawOne(baseState, deck);
-          if (!drawn) return handleRoundEnd(baseState);
+          const drawn = drawOne(tdBase, deck);
+          if (!drawn) return handleRoundEnd(tdBase);
           if (hasPinZone(drawn.card)) {
-            return { ...baseState, deck: drawn.deck, phase: 'gameOver', message: `SEATBELT THROW drew a PIN — ${newPlayers[currentPlayer].name} WINS!`, winner: currentPlayer };
+            return { ...tdBase, deck: drawn.deck, phase: 'gameOver', message: `SEATBELT THROW drew a PIN — ${newPlayers[currentPlayer].name} WINS!`, winner: currentPlayer };
           }
-          return passTo(opponent, { ...baseState, deck: drawn.deck, discard: [...discard, drawn.card] });
+          return passTo(opponent, { ...tdBase, deck: drawn.deck, discard: [...discard, drawn.card] });
         }
       }
 
@@ -1251,7 +1257,7 @@ export function useGame() {
 
   function resetFlags(flags) {
     // singleLeg persists for the whole round — only cleared at round end
-    return { hasEngaged: false, isBonus: false, singleLeg: flags.singleLeg ?? false, skipNext: false, armDrag: false, pinPlace: false };
+    return { hasEngaged: false, isBonus: false, singleLeg: flags.singleLeg ?? false, skipNext: false, armDrag: false, pinPlace: false, hasTakenDown: false };
   }
 
   function handleRoundEnd(state) {

@@ -348,25 +348,39 @@ function PlacementPreview({ preview }) {
 
 // ── Placement action buttons ──────────────────────────────────────────────────
 
-function PlacementActions({ preview, onAction, onFlip, armDrag, pinPlace }) {
+function PlacementActions({ preview, onAction, onFlip, armDrag, pinPlace, flags }) {
+  const hasEngaged = flags?.hasEngaged ?? false;
+  const hasTakenDown = flags?.hasTakenDown ?? false;
+
   const renderButtons = (pair) => {
     const { moveset, tertiaryKey } = pair;
-    if (moveset === 'PIN') return (
-      <button className="btn btn--danger btn--lg" onClick={() => onAction('pin_win')}>⚡ INSTANT WIN — Confirm</button>
-    );
+
+    // PIN requires prior TAKEDOWN in chain
+    if (moveset === 'PIN') {
+      if (!hasTakenDown) return <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>;
+      return <button className="btn btn--danger btn--lg" onClick={() => onAction('pin_win')}>⚡ INSTANT WIN — Confirm</button>;
+    }
+
     if (moveset === 'ENGAGE') return (<>
       <button className="btn btn--primary" onClick={() => onAction('engage')}>Take Another Turn</button>
       {tertiaryKey && <button className="btn btn--outline" onClick={() => onAction(`engage:${tertiaryKey}`)}>✦ Activate {TERTIARY_LABEL[tertiaryKey]}</button>}
     </>);
-    if (moveset === 'TAKEDOWN') return (<>
-      <button className="btn btn--primary" onClick={() => onAction('takedown:point')}>Gain 1 Point</button>
-      <button className="btn btn--secondary" onClick={() => onAction('takedown:pin')}>Attempt a Pin</button>
-      {tertiaryKey && <button className="btn btn--outline" onClick={() => onAction(`takedown:${tertiaryKey}`)}>✦ Activate {TERTIARY_LABEL[tertiaryKey]}</button>}
-    </>);
+
+    // TAKEDOWN requires prior ENGAGE in chain
+    if (moveset === 'TAKEDOWN') {
+      if (!hasEngaged) return <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>;
+      return (<>
+        <button className="btn btn--primary" onClick={() => onAction('takedown:point')}>Gain 1 Point</button>
+        <button className="btn btn--secondary" onClick={() => onAction('takedown:pin')}>Attempt a Pin</button>
+        {tertiaryKey && <button className="btn btn--outline" onClick={() => onAction(`takedown:${tertiaryKey}`)}>✦ Activate {TERTIARY_LABEL[tertiaryKey]}</button>}
+      </>);
+    }
+
     if (moveset === 'ESCAPE') return (<>
       <button className="btn btn--primary" onClick={() => onAction('escape')}>End Turn</button>
       {tertiaryKey === 'REVERSAL' && <button className="btn btn--outline" onClick={() => onAction('escape:REVERSAL')}>✦ Reversal (+1 Point)</button>}
     </>);
+
     return <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>;
   };
 
@@ -474,6 +488,7 @@ function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown
                   onFlip={onFlip}
                   armDrag={G.flags?.armDrag}
                   pinPlace={G.flags?.pinPlace}
+                  flags={G.flags}
                 />
               )}
             </div>
