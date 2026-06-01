@@ -348,7 +348,7 @@ function PlacementPreview({ preview }) {
 
 // ── Placement action buttons ──────────────────────────────────────────────────
 
-function PlacementActions({ preview, onAction, onFlip, armDrag }) {
+function PlacementActions({ preview, onAction, onFlip, armDrag, pinPlace }) {
   const renderButtons = (pair) => {
     const { moveset, tertiaryKey } = pair;
     if (moveset === 'PIN') return (
@@ -369,6 +369,20 @@ function PlacementActions({ preview, onAction, onFlip, armDrag }) {
     </>);
     return <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>;
   };
+
+  // PIN PLACE mode: only PIN win or silent placement
+  if (pinPlace) {
+    const hasPinWin = preview && ((preview.left?.moveset === 'PIN') || (preview.right?.moveset === 'PIN'));
+    return (
+      <div className="placed-actions-match">
+        <button className="btn btn--outline" onClick={onFlip}>↻ Flip</button>
+        {hasPinWin
+          ? <button className="btn btn--danger btn--lg" onClick={() => onAction('pin_win')}>⚡ INSTANT WIN — Confirm PIN</button>
+          : <button className="btn btn--primary" onClick={() => onAction('end')}>Place Card (no PIN pair)</button>
+        }
+      </div>
+    );
+  }
 
   // ARM DRAG mode: no actions, just confirm placement
   if (armDrag) return (
@@ -459,6 +473,7 @@ function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown
                   onAction={onConfirmWithAction}
                   onFlip={onFlip}
                   armDrag={G.flags?.armDrag}
+                  pinPlace={G.flags?.pinPlace}
                 />
               )}
             </div>
@@ -1121,6 +1136,7 @@ function GameBoard({ G, actions }) {
             {flags.isBonus && <span className="turn-tag"> · BONUS TURN</span>}
             {flags.singleLeg && <span className="turn-tag"> · SINGLE LEG ACTIVE</span>}
             {flags.armDrag && <span className="turn-tag turn-tag--warn"> · ARM DRAG: Place your card</span>}
+            {flags.pinPlace && <span className="turn-tag turn-tag--warn"> · PIN PLACE: Only PIN pair fires</span>}
           </div>
           <HandArea
             G={G}

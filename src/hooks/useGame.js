@@ -25,6 +25,7 @@ function fresh() {
       singleLeg: false,     // Single Leg Shoot: may play top discard instead of hand card (persists for round)
       skipNext: false,      // Fireman's Carry: opponent skips
       armDrag: false,       // Arm Drag: next placement goes to mat silently, then aftermath
+      pinPlace: false,      // Pin Place: only PIN pair fires on next placement
     },
     selectedIdx: null,      // index in current player's hand
     flipped: false,         // flip state of card about to be placed
@@ -458,6 +459,15 @@ export function useGame() {
         pending: null,
         _actionQueue: [],
       };
+
+      // PIN PLACE — only PIN pair fires, everything else is silent placement then end turn
+      if (flags.pinPlace) {
+        const cleanBase = { ...baseState, flags: { ...flags, pinPlace: false } };
+        if (choice === 'pin_win') {
+          return { ...cleanBase, phase: 'gameOver', message: `${newPlayers[currentPlayer].name} made a PIN — INSTANT WIN!`, winner: currentPlayer };
+        }
+        return endOrContinue(cleanBase);
+      }
 
       // ARM DRAG placement done — no pair detection, run aftermath
       if (choice === 'arm_drag_done' || flags.armDrag) {
@@ -1012,18 +1022,19 @@ export function useGame() {
           // choice: 'place' | 'skip'
           const { card: revealedCard, mode } = pending;
           if (choice === 'place') {
-            // Player wants to place the revealed card — go to a special playing-like phase
-            // We add the card to hand temporarily, player drags it to mat
+            // Add card to hand, go to playing with pinPlace flag active
+            // Player drags it normally — only PIN pair fires, everything else is silent
             const newPlayers = players.map((p2, i) =>
               i === currentPlayer ? { ...p2, hand: [...p2.hand, revealedCard] } : p2
             );
             return {
               ...prev,
               players: newPlayers,
-              phase: 'pin_place',  // special phase: only PIN pair fires, nothing else
-              pending: { type: 'PIN_PLACE_ACTIVE', revealedCard },
+              phase: 'playing',
+              pending: null,
               _actionQueue: [],
-              message: 'Place the card to create a PIN pair — or drag it back.',
+              flags: { ...flags, pinPlace: true },
+              message: 'Place the card — only a PIN pair can win. Anything else just sits on the mat.',
             };
           }
           // Skip / no pin possible
@@ -1240,7 +1251,7 @@ export function useGame() {
 
   function resetFlags(flags) {
     // singleLeg persists for the whole round — only cleared at round end
-    return { hasEngaged: false, isBonus: false, singleLeg: flags.singleLeg ?? false, skipNext: false, armDrag: false };
+    return { hasEngaged: false, isBonus: false, singleLeg: flags.singleLeg ?? false, skipNext: false, armDrag: false, pinPlace: false };
   }
 
   function handleRoundEnd(state) {
