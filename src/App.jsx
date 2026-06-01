@@ -361,10 +361,14 @@ function PlacementActions({ preview, onAction, onFlip, armDrag, pinPlace, flags 
       return <button className="btn btn--danger btn--lg" onClick={() => onAction('pin_win')}>⚡ INSTANT WIN — Confirm</button>;
     }
 
-    if (moveset === 'ENGAGE') return (<>
-      <button className="btn btn--primary" onClick={() => onAction('engage')}>Take Another Turn</button>
-      {tertiaryKey && <button className="btn btn--outline" onClick={() => onAction(`engage:${tertiaryKey}`)}>✦ Activate {TERTIARY_LABEL[tertiaryKey]}</button>}
-    </>);
+    if (moveset === 'ENGAGE') {
+      // Cannot double-engage during a bonus turn
+      if (flags?.isBonus && flags?.hasEngaged) return <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>;
+      return (<>
+        <button className="btn btn--primary" onClick={() => onAction('engage')}>Take Another Turn</button>
+        {tertiaryKey && <button className="btn btn--outline" onClick={() => onAction(`engage:${tertiaryKey}`)}>✦ Activate {TERTIARY_LABEL[tertiaryKey]}</button>}
+      </>);
+    }
 
     // TAKEDOWN requires prior ENGAGE in chain
     if (moveset === 'TAKEDOWN') {
