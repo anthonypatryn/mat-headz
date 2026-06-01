@@ -871,7 +871,10 @@ function GameBoard({ G, actions }) {
     setAnimatingHandIdx(cardIdx); // hide the card placeholder in hand
 
     // Play draw sound
-    new Audio('/sounds/card-draw.mp3').play().catch(() => {});
+    if (window.__cardDrawAudio) {
+      window.__cardDrawAudio.currentTime = 0;
+      window.__cardDrawAudio.play().catch(() => {});
+    }
 
     // Wait for DOM to render the invisible hand card, then read its position
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -1160,6 +1163,24 @@ function GameOver({ G, onNewGame }) {
 export default function App() {
   const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound, selectDiscardCard } = useGame();
   const { phase, players, currentPlayer } = G;
+
+  // Preload audio on first interaction so it plays reliably later
+  useEffect(() => {
+    const unlock = () => {
+      if (!window.__cardDrawAudio) {
+        window.__cardDrawAudio = new Audio('/sounds/card-draw.mp3');
+        window.__cardDrawAudio.load();
+      }
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('click', unlock);
+    window.addEventListener('keydown', unlock);
+    return () => {
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
 
   // Auto-init on mount — skip name entry screen
   useEffect(() => {
