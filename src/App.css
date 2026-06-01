@@ -694,11 +694,20 @@
 }
 
 .deck-pile__shadow--deep {
-  transform: translate(6px, 5px);
+  transform: translate(8px, 6px);
 }
 
 .deck-pile__shadow--mid {
-  transform: translate(3px, 3px);
+  transform: translate(5px, 4px);
+}
+
+.deck-pile__shadow--top {
+  transform: translate(3px, 2px);
+}
+
+.deck-pile__face--empty {
+  border: 2px dashed rgba(255,255,255,0.15);
+  border-radius: 6px;
 }
 
 .deck-pile__face {
@@ -720,6 +729,16 @@
 .deck-pile__count {
   font-weight: 800;
   color: var(--text);
+}
+
+/* ── Piles column (deck + discard stacked vertically) ────────────────────── */
+
+.piles-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-shrink: 0;
+  align-items: center;
 }
 
 /* ── Hand area ────────────────────────────────────────────────────────────── */

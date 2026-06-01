@@ -164,16 +164,18 @@ function useCardQuadrant(card, flipped) {
 // ── Draw animation ────────────────────────────────────────────────────────────
 
 function DrawAnimation({ card, fromX, fromY, toX, toY, faceUp, onDone }) {
-  const [flipped, setFlipped] = useState(faceUp);
-
+  const [flipping, setFlipping] = useState(false);
+  const [showFront, setShowFront] = useState(faceUp);
   const dx = toX - fromX;
   const dy = toY - fromY;
 
   useEffect(() => {
-    if (!faceUp) {
-      const t = setTimeout(() => setFlipped(true), 520); // flip at ~65% of 800ms
-      return () => clearTimeout(t);
-    }
+    if (faceUp) return;
+    // Start the 3D flip at 60% of 800ms = 480ms
+    const startFlip = setTimeout(() => setFlipping(true), 480);
+    // At halfway through flip (480 + 175ms), swap faces
+    const swapFace = setTimeout(() => setShowFront(true), 655);
+    return () => { clearTimeout(startFlip); clearTimeout(swapFace); };
   }, []);
 
   const cardBack = (
@@ -188,23 +190,44 @@ function DrawAnimation({ card, fromX, fromY, toX, toY, faceUp, onDone }) {
   return createPortal(
     <div
       style={{
-        position: 'fixed',
-        left: fromX,
-        top: fromY,
-        width: 400,
-        height: 286,
+        position: 'fixed', left: fromX, top: fromY,
+        width: 400, height: 286,
         transform: 'translate(-50%, -50%)',
-        zIndex: 99997,
-        pointerEvents: 'none',
-        borderRadius: 6,
-        overflow: 'hidden',
-        '--dx': `${dx}px`,
-        '--dy': `${dy}px`,
+        zIndex: 99997, pointerEvents: 'none',
+        '--dx': `${dx}px`, '--dy': `${dy}px`,
         animation: 'card-fly-to-hand 0.8s cubic-bezier(0.3, 0, 0.2, 1) forwards',
       }}
       onAnimationEnd={onDone}
     >
-      {flipped ? <CardImg card={card} flipped={false} /> : cardBack}
+      {/* 3D flip container */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        perspective: 1000,
+      }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          transformStyle: 'preserve-3d',
+          transform: flipping ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          transition: flipping ? 'transform 0.35s ease-in-out' : 'none',
+          borderRadius: 6,
+        }}>
+          {/* Back face */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backfaceVisibility: 'hidden', overflow: 'hidden', borderRadius: 6,
+          }}>
+            {!showFront && cardBack}
+          </div>
+          {/* Front face */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backfaceVisibility: 'hidden', overflow: 'hidden', borderRadius: 6,
+            transform: 'rotateY(180deg)',
+          }}>
+            {showFront && <CardImg card={card} flipped={false} />}
+          </div>
+        </div>
+      </div>
     </div>,
     document.body
   );
@@ -391,27 +414,33 @@ function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown
 
 // ── Deck pile ─────────────────────────────────────────────────────────────────
 
+function CardPileImg({ src, alt }) {
+  const w = 400, h = 286, pw = 286, ph = 400;
+  return (
+    <div style={{ width: w, height: h, position: 'relative', flexShrink: 0, borderRadius: 6, overflow: 'hidden' }}>
+      <img src={src} alt={alt} style={{
+        position: 'absolute', width: pw, height: ph,
+        top: '50%', left: '50%',
+        transform: 'translate(-50%,-50%) rotate(-90deg)',
+        objectFit: 'cover', userSelect: 'none',
+      }} />
+    </div>
+  );
+}
+
 function DeckPile({ count }) {
-  const w = 200, h = 143;
+  const w = 400, h = 286;
+  const shadows = count >= 14 ? 3 : count >= 9 ? 2 : count >= 4 ? 1 : 0;
   return (
     <div className="deck-pile">
       <div className="deck-pile__card" style={{ width: w, height: h }}>
-        {count > 2 && <div className="deck-pile__shadow deck-pile__shadow--deep" />}
-        {count > 1 && <div className="deck-pile__shadow deck-pile__shadow--mid" />}
-        <div className="deck-pile__face">
-          <img
-            src="/Cards/Back.png"
-            alt="Deck"
-            style={{
-              position: 'absolute',
-              width: h, height: w,
-              top: '50%', left: '50%',
-              transform: 'translate(-50%,-50%) rotate(-90deg)',
-              objectFit: 'cover',
-              userSelect: 'none',
-            }}
-          />
-        </div>
+        {shadows >= 3 && <div className="deck-pile__shadow deck-pile__shadow--deep" />}
+        {shadows >= 2 && <div className="deck-pile__shadow deck-pile__shadow--mid" />}
+        {shadows >= 1 && <div className="deck-pile__shadow deck-pile__shadow--top" />}
+        {count > 0
+          ? <div className="deck-pile__face"><CardPileImg src="/Cards/Back.png" alt="Deck" /></div>
+          : <div className="deck-pile__face deck-pile__face--empty" />
+        }
       </div>
       <div className="deck-pile__label">
         <span className="deck-pile__count">{count}</span> cards left
@@ -423,32 +452,23 @@ function DeckPile({ count }) {
 // ── Discard pile ─────────────────────────────────────────────────────────────
 
 function DiscardPile({ discard }) {
-  const w = 200, h = 143;
-  const topCard = discard.length > 0 ? discard[discard.length - 1] : null;
+  const w = 400, h = 286;
+  const count = discard.length;
+  const shadows = count >= 14 ? 3 : count >= 9 ? 2 : count >= 4 ? 1 : 0;
+  const topCard = count > 0 ? discard[count - 1] : null;
   return (
     <div className="deck-pile">
       <div className="deck-pile__card" style={{ width: w, height: h }}>
-        {topCard ? (
-          <div className="deck-pile__face">
-            <img
-              src={`/Cards/${topCard.img}`}
-              alt={topCard.img}
-              style={{
-                position: 'absolute',
-                width: h, height: w,
-                top: '50%', left: '50%',
-                transform: 'translate(-50%,-50%) rotate(-90deg)',
-                objectFit: 'cover',
-                userSelect: 'none',
-              }}
-            />
-          </div>
-        ) : (
-          <div className="deck-pile__face" style={{ border: '2px dashed rgba(255,255,255,0.2)', borderRadius: 6 }} />
-        )}
+        {shadows >= 3 && <div className="deck-pile__shadow deck-pile__shadow--deep" />}
+        {shadows >= 2 && <div className="deck-pile__shadow deck-pile__shadow--mid" />}
+        {shadows >= 1 && <div className="deck-pile__shadow deck-pile__shadow--top" />}
+        {topCard
+          ? <div className="deck-pile__face"><CardPileImg src={`/Cards/${topCard.img}`} alt="Discard" /></div>
+          : <div className="deck-pile__face deck-pile__face--empty" />
+        }
       </div>
       <div className="deck-pile__label">
-        Discard ({discard.length})
+        Discard ({count})
       </div>
     </div>
   );
@@ -743,8 +763,10 @@ function HandArea({ G, selectCard, toggleFlip, takePoint, selectDiscardCard, onC
         {!disabled && p.hand.length > 0 && <span className="hand-hint-inline"> — tap to select, drag to place</span>}
       </div>
       <div className="hand-play-zone">
-        <DeckPile count={deck.length} />
-        <DiscardPile discard={discard} />
+        <div className="piles-col">
+          <DeckPile count={deck.length} />
+          <DiscardPile discard={discard} />
+        </div>
         <div className="hand-cards-col">
           <div className="hand-cards">
             {p.hand.length === 0 && <div className="hand-empty">No cards in hand</div>}
