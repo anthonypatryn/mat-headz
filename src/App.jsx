@@ -1089,7 +1089,7 @@ function GameBoard({ G, actions }) {
 
   return (
     <div
-      className={`game-board${dragState ? ' game-board--dragging' : ''}`}
+      className={`game-board game-board--p${currentPlayer + 1}${dragState ? ' game-board--dragging' : ''}`}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >

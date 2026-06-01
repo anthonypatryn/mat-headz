@@ -340,7 +340,12 @@
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  transition: background 0.4s ease;
 }
+
+/* Temporary testing: different bg per player */
+.game-board--p1 { background: #0d1a0d; }
+.game-board--p2 { background: #0d0d1a; }
 
 .game-msg {
   background: #1a1a10;
