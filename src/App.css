@@ -344,8 +344,8 @@
 }
 
 /* Temporary testing: different bg per player */
-.game-board--p1 { background: #1a0d0d; }
-.game-board--p2 { background: #0d0d1a; }
+.game-board--p1 { --player-bg: #2a0808; --player-bg2: #1f0606; }
+.game-board--p2 { --player-bg: #08082a; --player-bg2: #06061f; }
 
 .game-msg {
   background: #1a1a10;
@@ -380,7 +380,7 @@
 
 .mat-area {
   padding: 12px;
-  background: #0a1a0a;
+  background: var(--player-bg, #0a1a0a);
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -753,7 +753,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  background: var(--bg);
+  background: var(--player-bg2, var(--bg));
   flex: 1;
   overflow-y: auto;
 }
