@@ -923,8 +923,9 @@
 
 .placement-preview__row {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .placement-preview__text {
