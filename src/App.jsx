@@ -871,10 +871,7 @@ function GameBoard({ G, actions }) {
     setAnimatingHandIdx(cardIdx); // hide the card placeholder in hand
 
     // Play draw sound
-    if (window.__cardDrawAudio) {
-      window.__cardDrawAudio.currentTime = 0;
-      window.__cardDrawAudio.play().catch(() => {});
-    }
+    if (window.__playCardDraw) window.__playCardDraw();
 
     // Wait for DOM to render the invisible hand card, then read its position
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -1164,21 +1161,39 @@ export default function App() {
   const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound, selectDiscardCard } = useGame();
   const { phase, players, currentPlayer } = G;
 
-  // Preload audio on first interaction so it plays reliably later
+  // Set up Web Audio API — unlock on first gesture, then play reliably from anywhere
   useEffect(() => {
-    const unlock = () => {
-      if (!window.__cardDrawAudio) {
-        window.__cardDrawAudio = new Audio('/sounds/card-draw.mp3');
-        window.__cardDrawAudio.load();
-      }
-      window.removeEventListener('click', unlock);
-      window.removeEventListener('keydown', unlock);
+    let ctx = null;
+    let buffer = null;
+
+    const loadBuffer = async (audioCtx) => {
+      try {
+        const res = await fetch('/sounds/card-draw.mp3');
+        const arrayBuf = await res.arrayBuffer();
+        buffer = await audioCtx.decodeAudioData(arrayBuf);
+        window.__playCardDraw = () => {
+          if (!buffer) return;
+          const src = audioCtx.createBufferSource();
+          src.buffer = buffer;
+          src.connect(audioCtx.destination);
+          src.start(0);
+        };
+      } catch (e) {}
     };
+
+    const unlock = () => {
+      if (ctx) return;
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      loadBuffer(ctx);
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+    };
+
     window.addEventListener('click', unlock);
-    window.addEventListener('keydown', unlock);
+    window.addEventListener('touchstart', unlock);
     return () => {
       window.removeEventListener('click', unlock);
-      window.removeEventListener('keydown', unlock);
+      window.removeEventListener('touchstart', unlock);
     };
   }, []);
 
