@@ -1161,6 +1161,21 @@ export default function App() {
   const { G, initGame, startTurn, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard, selectCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, nextRound, selectDiscardCard } = useGame();
   const { phase, players, currentPlayer } = G;
 
+  // ── Responsive scaling ───────────────────────────────────────────────────
+  const DESIGN_W = 1280;
+  const DESIGN_H = 900;
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const update = () => {
+      const s = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+      setScale(Math.min(s, 1)); // never scale above 1x
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   // Set up Web Audio API — unlock on first gesture, then play reliably from anywhere
   useEffect(() => {
     let ctx = null;
@@ -1203,24 +1218,48 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-skip pass screen — skip card-hiding handoff for now
-  useEffect(() => {
-    if (phase === 'pass') {
-      const t = setTimeout(startTurn, 0);
-      return () => clearTimeout(t);
-    }
-  }, [phase]);
+  if (phase === 'start') return null;
 
-  // Show nothing while auto-transitions fire
-  if (phase === 'start' || phase === 'pass') return null;
+  const frameStyle = {
+    width: DESIGN_W,
+    height: DESIGN_H,
+    transformOrigin: 'top left',
+    transform: `scale(${scale})`,
+    overflow: 'hidden',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  };
 
-  if (phase === 'roundEnd') return <RoundEnd G={G} onNextRound={nextRound} />;
-  if (phase === 'gameOver') return <GameOver G={G} onNewGame={() => initGame('Player 1', 'Player 2')} />;
+  const outerStyle = {
+    width: DESIGN_W * scale,
+    height: DESIGN_H * scale,
+    position: 'relative',
+    margin: '0 auto',
+  };
+
+  let content;
+  if (phase === 'pass') {
+    const currentName = G.players[G.currentPlayer].name;
+    content = <PassScreen playerName={currentName} message={G.message} onReady={startTurn} />;
+  } else if (phase === 'roundEnd') {
+    content = <RoundEnd G={G} onNextRound={nextRound} />;
+  } else if (phase === 'gameOver') {
+    content = <GameOver G={G} onNewGame={() => initGame('Player 1', 'Player 2')} />;
+  } else {
+    content = (
+      <GameBoard
+        G={G}
+        actions={{ selectCard, selectDiscardCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard }}
+      />
+    );
+  }
 
   return (
-    <GameBoard
-      G={G}
-      actions={{ selectCard, selectDiscardCard, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard }}
-    />
+    <div style={outerStyle}>
+      <div style={frameStyle}>
+        {content}
+      </div>
+    </div>
   );
 }
