@@ -1203,16 +1203,11 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-skip pass screen — skip card-hiding handoff for now
-  useEffect(() => {
-    if (phase === 'pass') {
-      const t = setTimeout(startTurn, 0);
-      return () => clearTimeout(t);
-    }
-  }, [phase]);
+  if (phase === 'start') return null;
 
-  // Show nothing while auto-transitions fire
-  if (phase === 'start' || phase === 'pass') return null;
+  if (phase === 'pass') {
+    return <PassScreen playerName={G.players[G.currentPlayer].name} message={G.message} onReady={startTurn} />;
+  }
 
   if (phase === 'roundEnd') return <RoundEnd G={G} onNextRound={nextRound} />;
   if (phase === 'gameOver') return <GameOver G={G} onNewGame={() => initGame('Player 1', 'Player 2')} />;
