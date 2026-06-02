@@ -440,49 +440,43 @@ function CardPileImg({ src, alt }) {
   );
 }
 
-function DeckPile({ count }) {
-  const w = 400, h = 286;
+function CardPileStack({ count, faceContent, label }) {
   const shadows = count >= 14 ? 3 : count >= 9 ? 2 : count >= 4 ? 1 : 0;
   return (
     <div className="deck-pile">
-      <div className="deck-pile__card" style={{ width: w, height: h }}>
+      <div className="deck-pile__card" style={{ width: 400, height: 286 }}>
         {shadows >= 3 && <div className="deck-pile__shadow deck-pile__shadow--deep" />}
         {shadows >= 2 && <div className="deck-pile__shadow deck-pile__shadow--mid" />}
         {shadows >= 1 && <div className="deck-pile__shadow deck-pile__shadow--top" />}
-        {count > 0
-          ? <div className="deck-pile__face"><CardPileImg src="/Cards/Back.png" alt="Deck" /></div>
+        {faceContent
+          ? <div className="deck-pile__face">{faceContent}</div>
           : <div className="deck-pile__face deck-pile__face--empty" />
         }
       </div>
-      <div className="deck-pile__label">
-        <span className="deck-pile__count">{count}</span> cards left
-      </div>
+      <div className="deck-pile__label">{label}</div>
     </div>
   );
 }
 
-// ── Discard pile ─────────────────────────────────────────────────────────────
+function DeckPile({ count }) {
+  return (
+    <CardPileStack
+      count={count}
+      faceContent={count > 0 ? <CardPileImg src="/Cards/Back.png" alt="Deck" /> : null}
+      label={<><span className="deck-pile__count">{count}</span> cards left</>}
+    />
+  );
+}
 
 function DiscardPile({ discard }) {
-  const w = 400, h = 286;
   const count = discard.length;
-  const shadows = count >= 14 ? 3 : count >= 9 ? 2 : count >= 4 ? 1 : 0;
   const topCard = count > 0 ? discard[count - 1] : null;
   return (
-    <div className="deck-pile">
-      <div className="deck-pile__card" style={{ width: w, height: h }}>
-        {shadows >= 3 && <div className="deck-pile__shadow deck-pile__shadow--deep" />}
-        {shadows >= 2 && <div className="deck-pile__shadow deck-pile__shadow--mid" />}
-        {shadows >= 1 && <div className="deck-pile__shadow deck-pile__shadow--top" />}
-        {topCard
-          ? <div className="deck-pile__face"><CardPileImg src={`/Cards/${topCard.img}`} alt="Discard" /></div>
-          : <div className="deck-pile__face deck-pile__face--empty" />
-        }
-      </div>
-      <div className="deck-pile__label">
-        Discard ({count})
-      </div>
-    </div>
+    <CardPileStack
+      count={count}
+      faceContent={topCard ? <CardPileImg src={`/Cards/${topCard.img}`} alt="Discard" /> : null}
+      label={`Discard (${count})`}
+    />
   );
 }
 
@@ -528,6 +522,19 @@ function PassScreen({ playerName, message, onReady }) {
   );
 }
 
+// ── Modal wrapper ─────────────────────────────────────────────────────────────
+
+function Modal({ title, children }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        {title && <h3>{title}</h3>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ── Action modal ──────────────────────────────────────────────────────────────
 
 function ActionModal({ G, resolveAction }) {
@@ -539,61 +546,47 @@ function ActionModal({ G, resolveAction }) {
 
   if (type === 'LOCK_UP_CHOOSE') {
     return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>LOCK UP</h3>
-          <p>Choose a card from your hand to place on the bottom of the deck.</p>
-          <div className="modal-pick-row">
-            {p.hand.map((card, i) => (
-              <button key={i} className="modal-pick-card" onClick={() => resolveAction(i)}>
-                <CardImg card={card} flipped={false} />
-                <div className="modal-pick-zones">
-                  <ZoneBadge zone={card.L} />
-                  <ZoneBadge zone={card.R} />
-                </div>
-              </button>
-            ))}
-          </div>
+      <Modal title="LOCK UP">
+        <p>Choose a card from your hand to place on the bottom of the deck.</p>
+        <div className="modal-pick-row">
+          {p.hand.map((card, i) => (
+            <button key={i} className="modal-pick-card" onClick={() => resolveAction(i)}>
+              <CardImg card={card} flipped={false} />
+              <div className="modal-pick-zones">
+                <ZoneBadge zone={card.L} />
+                <ZoneBadge zone={card.R} />
+              </div>
+            </button>
+          ))}
         </div>
-      </div>
+      </Modal>
     );
   }
-
 
   if (type === 'PIN_REVEAL') {
     const { card, mode } = pending;
     const skipLabel = mode === 'hip_toss' ? 'To Score Pile' : 'Discard — End Turn';
     return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>{mode === 'hip_toss' ? 'HIP TOSS' : 'ATTEMPT A PIN'} — Revealed Card:</h3>
-          <CardImg card={card} flipped={false} />
-          <div className="modal-zones-row">
-            <ZoneBadge zone={card.L} />
-            <ZoneBadge zone={card.R} />
-          </div>
-          <div className="modal-btns">
-            <button className="btn btn--primary" onClick={() => resolveAction('place')}>
-              Place It! (PIN only fires)
-            </button>
-            <button className="btn btn--secondary" onClick={() => resolveAction('skip')}>
-              {skipLabel}
-            </button>
-          </div>
+      <Modal title={`${mode === 'hip_toss' ? 'HIP TOSS' : 'ATTEMPT A PIN'} — Revealed Card:`}>
+        <CardImg card={card} flipped={false} />
+        <div className="modal-zones-row">
+          <ZoneBadge zone={card.L} />
+          <ZoneBadge zone={card.R} />
         </div>
-      </div>
+        <div className="modal-btns">
+          <button className="btn btn--primary" onClick={() => resolveAction('place')}>Place It! (PIN only fires)</button>
+          <button className="btn btn--secondary" onClick={() => resolveAction('skip')}>{skipLabel}</button>
+        </div>
+      </Modal>
     );
   }
 
   if (type === 'RINGOUT_MSG') {
     return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>RING OUT!</h3>
-          <p>{G.message}</p>
-          <button className="btn btn--primary" onClick={() => resolveAction()}>Continue</button>
-        </div>
-      </div>
+      <Modal title="RING OUT!">
+        <p>{G.message}</p>
+        <button className="btn btn--primary" onClick={() => resolveAction()}>Continue</button>
+      </Modal>
     );
   }
 
@@ -688,17 +681,16 @@ function ScoreHeader({ G }) {
   );
 }
 
-// ── Game board ────────────────────────────────────────────────────────────────
+// ── Draw animation hook ───────────────────────────────────────────────────────
 
-function GameBoard({ G, actions }) {
-  const { selectCard, selectDiscardCard, confirmWithAction, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, cancelPlacement, flipPlacedCard } = actions;
-  const { phase, matPickMode, message, currentPlayer, players, flags, mat } = G;
-  const [dragState, setDragState] = useState(null);
-  const matRef = useRef(null);
-
-  // ── Drawn card flash animation ────────────────────────────────────────────
+function useDrawAnimation(G) {
   const prevPhaseRef = useRef(G.phase);
   const [drawnCardIdx, setDrawnCardIdx] = useState(null);
+  const [drawAnim, setDrawAnim] = useState(null);
+  const [returnAnim, setReturnAnim] = useState(null);
+  const [animatingHandIdx, setAnimatingHandIdx] = useState(null);
+  const prevDrawSignalId = useRef(null);
+  const prevReturnSignalId = useRef(null);
 
   useEffect(() => {
     const prev = prevPhaseRef.current;
@@ -711,24 +703,12 @@ function GameBoard({ G, actions }) {
     }
   }, [G.phase, G.currentPlayer]);
 
-  // ── Draw / return animations ──────────────────────────────────────────────
-  const [drawAnim, setDrawAnim] = useState(null);
-  const [returnAnim, setReturnAnim] = useState(null);
-  const [animatingHandIdx, setAnimatingHandIdx] = useState(null); // hide this hand card while animating
-  const prevDrawSignalId = useRef(null);
-  const prevReturnSignalId = useRef(null);
-
   useEffect(() => {
     if (!G.drawSignal || G.drawSignal.id === prevDrawSignalId.current) return;
     prevDrawSignalId.current = G.drawSignal.id;
-
     const cardIdx = G.players[G.currentPlayer].hand.length - 1;
-    setAnimatingHandIdx(cardIdx); // hide the card placeholder in hand
-
-    // Play draw sound
+    setAnimatingHandIdx(cardIdx);
     if (window.__playCardDraw) window.__playCardDraw();
-
-    // Wait for DOM to render the invisible hand card, then read its position
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const src = G.drawSignal.source === 'discard'
         ? document.querySelector('.deck-pile + .deck-pile')
@@ -736,7 +716,6 @@ function GameBoard({ G, actions }) {
       const handCards = document.querySelectorAll('.hand-card');
       const dest = handCards[cardIdx];
       if (!src || !dest) { setAnimatingHandIdx(null); return; }
-
       const srcRect = src.getBoundingClientRect();
       const destRect = dest.getBoundingClientRect();
       setDrawAnim({
@@ -753,11 +732,10 @@ function GameBoard({ G, actions }) {
   useEffect(() => {
     if (!G.returnSignal || G.returnSignal.id === prevReturnSignalId.current) return;
     prevReturnSignalId.current = G.returnSignal.id;
-    const deck = document.querySelector('.deck-pile');
+    const deckEl = document.querySelector('.deck-pile');
     const handCards = document.querySelectorAll('.hand-card');
-    if (!deck || !handCards.length) return;
-    const deckRect = deck.getBoundingClientRect();
-    // Animate from the last hand card position (the one being returned)
+    if (!deckEl || !handCards.length) return;
+    const deckRect = deckEl.getBoundingClientRect();
     const lastCard = handCards[handCards.length - 1];
     const srcRect = lastCard.getBoundingClientRect();
     setReturnAnim({
@@ -768,6 +746,25 @@ function GameBoard({ G, actions }) {
       toY: deckRect.top + deckRect.height / 2,
     });
   }, [G.returnSignal]);
+
+  return {
+    drawnCardIdx, drawAnim, returnAnim, animatingHandIdx,
+    setDrawAnim, setReturnAnim, setAnimatingHandIdx,
+  };
+}
+
+// ── Game board ────────────────────────────────────────────────────────────────
+
+function GameBoard({ G, actions }) {
+  const { selectCard, selectDiscardCard, confirmWithAction, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, cancelPlacement, flipPlacedCard } = actions;
+  const { phase, matPickMode, message, currentPlayer, players, flags, mat } = G;
+  const [dragState, setDragState] = useState(null);
+  const matRef = useRef(null);
+
+  const {
+    drawnCardIdx, drawAnim, returnAnim, animatingHandIdx,
+    setDrawAnim, setReturnAnim, setAnimatingHandIdx,
+  } = useDrawAnimation(G);
 
   const handlePlacedCardMouseDown = (e) => {
     if (phase !== 'placed' || !G.pendingPlacement) return;
@@ -963,6 +960,21 @@ function GameBoard({ G, actions }) {
   );
 }
 
+// ── Shared score list ─────────────────────────────────────────────────────────
+
+function ScoreList({ players }) {
+  return (
+    <div className="scores-list">
+      {players.map((p, i) => (
+        <div key={i} className="score-row">
+          <span>{p.name}</span>
+          <span className="score-pts">{p.score} pts</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Round end ─────────────────────────────────────────────────────────────────
 
 function RoundEnd({ G, onNextRound }) {
@@ -970,14 +982,7 @@ function RoundEnd({ G, onNextRound }) {
   return (
     <div className="screen">
       <h2 className="round-title">Round {round} Complete!</h2>
-      <div className="scores-list">
-        {players.map((p, i) => (
-          <div key={i} className="score-row">
-            <span>{p.name}</span>
-            <span className="score-pts">{p.score} pts</span>
-          </div>
-        ))}
-      </div>
+      <ScoreList players={players} />
       <button className="btn btn--primary btn--lg" onClick={onNextRound}>
         Start Round {round + 1}
       </button>
@@ -999,14 +1004,7 @@ function GameOver({ G, onNewGame }) {
           : <div className="winner-name">IT'S A TIE!</div>
         }
       </div>
-      <div className="scores-list">
-        {players.map((p, i) => (
-          <div key={i} className="score-row">
-            <span>{p.name}</span>
-            <span className="score-pts">{p.score} pts</span>
-          </div>
-        ))}
-      </div>
+      <ScoreList players={players} />
       <button className="btn btn--primary btn--lg" onClick={onNewGame}>Play Again</button>
     </div>
   );
