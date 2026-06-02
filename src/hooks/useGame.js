@@ -795,36 +795,6 @@ export function useGame() {
           return passTo(opponent, { ...prev, discard: [...discard, revealedCard], pending: null, _actionQueue: [] });
         }
 
-        case 'ARM_DRAG_PLACE': {
-          // Player needs to place their remaining hand card manually
-          // choice = { placement, cardIdx, flipped } — sent when player confirms placement
-          if (!choice) {
-            // Just waiting for player to drag the card — stay in this state
-            return prev;
-          }
-          const { placement, cardIdx, flippedCard } = choice;
-          const playCard = p.hand[cardIdx ?? 0];
-          if (!playCard) return passTo(opponent, { ...prev, pending: null, _actionQueue: [] });
-          const newHand = p.hand.filter((_, i) => i !== (cardIdx ?? 0));
-          const newMat = [...mat, { uid: uid(), card: playCard, flipped: flippedCard ?? false, adjacent: true, zoneOffset: (mat[mat.length - 1]?.zoneOffset ?? 3) + 2 }];
-          // Draw 1 to hand, draw 1 to score pile
-          if (deck.length === 0) return handleRoundEnd({ ...prev, players: players.map((p2, i) => i === currentPlayer ? { ...p2, hand: newHand } : p2), mat: newMat });
-          const newDeck1 = [...deck];
-          const drawn = newDeck1.pop();
-          if (newDeck1.length === 0) {
-            const newPlayers = players.map((p2, i) => i === currentPlayer ? { ...p2, hand: [...newHand, drawn] } : p2);
-            return passTo(opponent, { ...prev, players: newPlayers, deck: newDeck1, mat: newMat, pending: null, _actionQueue: [], drawSignal: { card: drawn, source: 'deck', id: uid() } });
-          }
-          const newDeck2 = [...newDeck1];
-          const scoreCard = newDeck2.pop();
-          const newPlayers = players.map((p2, i) =>
-            i === currentPlayer
-              ? { ...p2, hand: [...newHand, drawn], scorePile: [...p2.scorePile, scoreCard], score: p2.score + 1 }
-              : p2
-          );
-          return passTo(opponent, { ...prev, players: newPlayers, deck: newDeck2, mat: newMat, pending: null, _actionQueue: [], drawSignal: { card: drawn, source: 'deck', id: uid() } });
-        }
-
         case 'RINGOUT_MSG': {
           return { ...prev, pending: null, phase: 'pass', message: prev.message };
         }
