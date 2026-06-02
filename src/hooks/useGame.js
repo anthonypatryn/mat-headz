@@ -32,7 +32,6 @@ function fresh() {
     flipped: false,         // flip state of card about to be placed
     pending: null,          // { type, ...data } — pending action awaiting resolution
     matPickMode: null,      // 'double_leg' — player must pick a mat card
-    hipTossDrawn: null,     // card drawn by Hip Toss awaiting decision
     message: '',
     pendingPlacement: null,  // { prevMat, prevMatSpan, prevPlayers, newMat, newSpan, newPlayers, placement, placed }
     drawSignal: null,        // { card, source: 'deck'|'discard', id } — triggers draw animation
@@ -966,10 +965,6 @@ export function useGame() {
     });
   }
 
-  function newGame() {
-    setG(fresh());
-  }
-
   return {
     G,
     initGame,
@@ -987,6 +982,5 @@ export function useGame() {
     resolveAction,
     pickMatCard,
     nextRound,
-    newGame,
   };
 }

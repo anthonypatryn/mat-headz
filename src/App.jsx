@@ -59,12 +59,6 @@ function previewPlacement(placed, newMat, placement) {
   return null;
 }
 
-const SECONDARY_PREVIEW = {
-  PIN:      '⚡ INSTANT WIN on Confirm!',
-  ENGAGE:   'Take another turn immediately',
-  TAKEDOWN: 'Choose: gain a point, attempt a pin, or activate technique',
-  ESCAPE:   'No effect',
-};
 
 // ── Card image ────────────────────────────────────────────────────────────────
 // The card images are portrait photos. We display them landscape by putting
@@ -109,10 +103,9 @@ function CardImg({ card, flipped, unclipped = false }) {
 // ── Zone badge ────────────────────────────────────────────────────────────────
 // Used only in placement preview banner and modals — no technique labels shown.
 
-function ZoneBadge({ zone, side, compact = true }) {
+function ZoneBadge({ zone }) {
   return (
-    <div className={`zone-badge${compact ? '' : ' zone-badge--full'}`} style={{ background: MOVESET_COLOR[zone.m] }}>
-      {!compact && side && <span className="zone-side-label">{side}</span>}
+    <div className="zone-badge" style={{ background: MOVESET_COLOR[zone.m] }}>
       <span className="zone-m">{zone.m}</span>
     </div>
   );
@@ -161,6 +154,19 @@ function useCardQuadrant(card, flipped) {
   return { tooltipPortal, handleMouseMove, handleMouseLeave };
 }
 
+// ── Card back image (reused in animations) ────────────────────────────────────
+
+function CardBack() {
+  return (
+    <img src="/Cards/Back.png" alt="" style={{
+      width: 286, height: 400, position: 'absolute',
+      top: '50%', left: '50%',
+      transform: 'translate(-50%,-50%) rotate(-90deg)',
+      objectFit: 'cover', borderRadius: 4,
+    }} />
+  );
+}
+
 // ── Draw animation ────────────────────────────────────────────────────────────
 
 function DrawAnimation({ card, fromX, fromY, toX, toY, faceUp, onDone }) {
@@ -178,15 +184,6 @@ function DrawAnimation({ card, fromX, fromY, toX, toY, faceUp, onDone }) {
     return () => { clearTimeout(startFlip); clearTimeout(swapFace); };
   }, []);
 
-  const cardBack = (
-    <img src="/Cards/Back.png" alt="" style={{
-      width: 286, height: 400, position: 'absolute',
-      top: '50%', left: '50%',
-      transform: 'translate(-50%,-50%) rotate(-90deg)',
-      objectFit: 'cover', borderRadius: 4,
-    }} />
-  );
-
   return createPortal(
     <div
       style={{
@@ -199,11 +196,7 @@ function DrawAnimation({ card, fromX, fromY, toX, toY, faceUp, onDone }) {
       }}
       onAnimationEnd={onDone}
     >
-      {/* 3D flip container */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        perspective: 1000,
-      }}>
+      <div style={{ position: 'absolute', inset: 0, perspective: 1000 }}>
         <div style={{
           position: 'absolute', inset: 0,
           transformStyle: 'preserve-3d',
@@ -211,19 +204,10 @@ function DrawAnimation({ card, fromX, fromY, toX, toY, faceUp, onDone }) {
           transition: flipping ? 'transform 0.35s ease-in-out' : 'none',
           borderRadius: 6,
         }}>
-          {/* Back face */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            backfaceVisibility: 'hidden', overflow: 'hidden', borderRadius: 6,
-          }}>
-            {!showFront && cardBack}
+          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', overflow: 'hidden', borderRadius: 6 }}>
+            {!showFront && <CardBack />}
           </div>
-          {/* Front face */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            backfaceVisibility: 'hidden', overflow: 'hidden', borderRadius: 6,
-            transform: 'rotateY(180deg)',
-          }}>
+          <div style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', overflow: 'hidden', borderRadius: 6, transform: 'rotateY(180deg)' }}>
             {showFront && <CardImg card={card} flipped={false} />}
           </div>
         </div>
@@ -243,35 +227,20 @@ function ReturnAnimation({ card, fromX, fromY, toX, toY, onDone }) {
     return () => clearTimeout(t);
   }, []);
 
-  const cardBack = (
-    <img src="/Cards/Back.png" alt="" style={{
-      width: 286, height: 400, position: 'absolute',
-      top: '50%', left: '50%',
-      transform: 'translate(-50%,-50%) rotate(-90deg)',
-      objectFit: 'cover', borderRadius: 4,
-    }} />
-  );
-
   return createPortal(
     <div
       style={{
-        position: 'fixed',
-        left: fromX,
-        top: fromY,
-        width: 400,
-        height: 286,
+        position: 'fixed', left: fromX, top: fromY,
+        width: 400, height: 286,
         transform: 'translate(-50%, -50%)',
-        zIndex: 99997,
-        pointerEvents: 'none',
-        borderRadius: 6,
-        overflow: 'hidden',
-        '--dx': `${dx}px`,
-        '--dy': `${dy}px`,
+        zIndex: 99997, pointerEvents: 'none',
+        borderRadius: 6, overflow: 'hidden',
+        '--dx': `${dx}px`, '--dy': `${dy}px`,
         animation: 'card-return-to-deck 0.8s cubic-bezier(0.3, 0, 0.2, 1) forwards',
       }}
       onAnimationEnd={onDone}
     >
-      {flipped ? cardBack : <CardImg card={card} flipped={false} />}
+      {flipped ? <CardBack /> : <CardImg card={card} flipped={false} />}
     </div>,
     document.body
   );
@@ -300,57 +269,11 @@ function MatCardImg({ entry, index, isProtected, isPickable, isPlaced, onPick, o
   );
 }
 
-// ── Placement preview banner — shown below placed card before confirm ─────────
-
-function PlacementPreview({ preview }) {
-  const { left, right } = preview;
-
-  // Both sides match — player will choose in the modal after confirm
-  if (left && right) {
-    return (
-      <div className="placement-preview placement-preview--both">
-        <div className="placement-preview__both-hdr">⚡ Both sides match — choose which fires after confirm!</div>
-        <div className="placement-preview__both-sides">
-          {[['LEFT', left], ['RIGHT', right]].map(([label, pair]) => (
-            <div key={label} className={`placement-preview__side placement-preview--${pair.moveset.toLowerCase()}`}>
-              <span className="placement-preview__side-label">{label}</span>
-              <ZoneBadge zone={pair.pairedZone} />
-              <span className="placement-preview__secondary">{SECONDARY_PREVIEW[pair.moveset]}</span>
-              {pair.tertiaryKey && <span className="placement-preview__tert-name">✦ {TERTIARY_LABEL[pair.tertiaryKey]}</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Single side
-  const pair = left || right;
-  const { moveset, tertiaryKey, pairedZone } = pair;
-  return (
-    <div className={`placement-preview placement-preview--${moveset.toLowerCase()}`}>
-      <div className="placement-preview__row">
-        <ZoneBadge zone={pairedZone} />
-        <div className="placement-preview__text">
-          <span className="placement-preview__match">MATCH!</span>
-          <span className="placement-preview__secondary">{SECONDARY_PREVIEW[moveset]}</span>
-        </div>
-      </div>
-      {tertiaryKey && (
-        <div className="placement-preview__tertiary">
-          <span className="placement-preview__tert-name">✦ {TERTIARY_LABEL[tertiaryKey]}</span>
-          <span className="placement-preview__tert-desc">{TERTIARY_DESC[tertiaryKey]}</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Placement action buttons ──────────────────────────────────────────────────
 
-function PlacementActions({ preview, onAction, onFlip, armDrag, pinPlace, flags }) {
-  const hasEngaged = flags?.hasEngaged ?? false;
-  const hasTakenDown = flags?.hasTakenDown ?? false;
+function PlacementActions({ preview, onAction, onFlip, flags }) {
+  const { hasEngaged = false, hasTakenDown = false, isBonus = false, armDrag = false, pinPlace = false } = flags ?? {};
 
   const renderButtons = (pair) => {
     const { moveset, tertiaryKey } = pair;
@@ -363,7 +286,7 @@ function PlacementActions({ preview, onAction, onFlip, armDrag, pinPlace, flags 
 
     if (moveset === 'ENGAGE') {
       // Cannot double-engage during a bonus turn
-      if (flags?.isBonus && flags?.hasEngaged) return <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>;
+      if (isBonus && hasEngaged) return <button className="btn btn--primary" onClick={() => onAction('end')}>End Turn</button>;
       return (<>
         <button className="btn btn--primary" onClick={() => onAction('engage')}>Take Another Turn</button>
         {tertiaryKey && <button className="btn btn--outline" onClick={() => onAction(`engage:${tertiaryKey}`)}>✦ Activate {TERTIARY_LABEL[tertiaryKey]}</button>}
@@ -438,7 +361,7 @@ function PlacementActions({ preview, onAction, onFlip, armDrag, pinPlace, flags 
 
 // ── Mat ───────────────────────────────────────────────────────────────────────
 
-function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown, onConfirmWithAction }) {
+function Mat({ G, matRef, onPick, onCancel, onFlip, onPlacedMouseDown, onConfirmWithAction }) {
   const { mat, protectedUids, matPickMode, matSpan, phase, pendingPlacement } = G;
   const span = matSpan ?? mat.length * 2;
   const placedUid = phase === 'placed' && pendingPlacement ? pendingPlacement.placed.uid : null;
@@ -490,8 +413,6 @@ function Mat({ G, matRef, onPick, onConfirm, onCancel, onFlip, onPlacedMouseDown
                   preview={preview}
                   onAction={onConfirmWithAction}
                   onFlip={onFlip}
-                  armDrag={G.flags?.armDrag}
-                  pinPlace={G.flags?.pinPlace}
                   flags={G.flags}
                 />
               )}
@@ -592,31 +513,6 @@ function HandCard({ card, flipped, isSelected, isDragging, isDrawn, isAnimating,
   );
 }
 
-// ── Start screen ──────────────────────────────────────────────────────────────
-
-function StartScreen({ onStart }) {
-  const [n1, setN1] = useState('Player 1');
-  const [n2, setN2] = useState('Player 2');
-  return (
-    <div className="screen">
-      <div className="start-logo">MAT HEADZ</div>
-      <p className="start-sub">2-Player Wrestling Card Game</p>
-      <div className="name-form">
-        <label>
-          Wrestler 1
-          <input value={n1} onChange={e => setN1(e.target.value)} maxLength={20} />
-        </label>
-        <label>
-          Wrestler 2
-          <input value={n2} onChange={e => setN2(e.target.value)} maxLength={20} />
-        </label>
-      </div>
-      <button className="btn btn--primary btn--lg" onClick={() => onStart(n1.trim() || 'Player 1', n2.trim() || 'Player 2')}>
-        ENTER THE MAT
-      </button>
-    </div>
-  );
-}
 
 // ── Pass screen ───────────────────────────────────────────────────────────────
 
@@ -663,54 +559,6 @@ function ActionModal({ G, resolveAction }) {
     );
   }
 
-  if (type === 'ARM_DRAG_PLAY') {
-    return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>ARM DRAG</h3>
-          <p>Choose a card from your hand to play onto the mat. Then you'll draw 1 and take a point.</p>
-          <div className="modal-pick-row">
-            {p.hand.map((card, i) => (
-              <button key={i} className="modal-pick-card" onClick={() => resolveAction(i)}>
-                <CardImg card={card} flipped={false} />
-                <div className="modal-pick-zones">
-                  <ZoneBadge zone={card.L} />
-                  <ZoneBadge zone={card.R} />
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === 'HIP_TOSS_DECIDE') {
-    const { drawnCard } = pending;
-    const hasPIN = drawnCard.L.m === 'PIN' || drawnCard.R.m === 'PIN';
-    return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>HIP TOSS — You Drew:</h3>
-          <CardImg card={drawnCard} flipped={false} />
-          <div className="modal-zones-row">
-            <ZoneBadge zone={drawnCard.L} />
-            <ZoneBadge zone={drawnCard.R} />
-          </div>
-          <div className="modal-btns">
-            {hasPIN && (
-              <button className="btn btn--primary" onClick={() => resolveAction('pin')}>
-                Play as PIN
-              </button>
-            )}
-            <button className="btn btn--secondary" onClick={() => resolveAction('point')}>
-              Use as Point
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (type === 'PIN_REVEAL') {
     const { card, mode } = pending;
@@ -749,117 +597,8 @@ function ActionModal({ G, resolveAction }) {
     );
   }
 
-  if (type === 'ENGAGE_SECONDARY') {
-    return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>ENGAGE!</h3>
-          <p>Matching ENGAGE zones — take another turn!</p>
-          <button className="btn btn--primary" onClick={() => resolveAction()}>Take Another Turn</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === 'TAKEDOWN_SECONDARY') {
-    if (flags.isBonus) {
-      return (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>TAKEDOWN (Bonus Turn!)</h3>
-            <p>You scored a Takedown on an Engage bonus turn. Choose:</p>
-            <div className="modal-btns">
-              <button className="btn btn--primary" onClick={() => resolveAction('A')}>
-                A — Draw face-down (take a point)
-              </button>
-              <button className="btn btn--secondary" onClick={() => resolveAction('B')}>
-                B — Draw face-up (win if it has a PIN zone!)
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    const hasTertiary = G._actionQueue && G._actionQueue.length > 0;
-    return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>TAKEDOWN!</h3>
-          <p>Matching TAKEDOWN zones. Choose ONE:</p>
-          <div className="modal-btns">
-            <button className="btn btn--primary" onClick={() => resolveAction('point')}>
-              Gain 1 Point
-            </button>
-            <button className="btn btn--secondary" onClick={() => resolveAction('pin')}>
-              Attempt a Pin
-            </button>
-            {hasTertiary && (
-              <button className="btn btn--outline" onClick={() => resolveAction('technique')}>
-                Activate Technique
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === 'ESCAPE_SECONDARY') {
-    return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>ESCAPE!</h3>
-          <p>Matching ESCAPE zones — no effect. Turn ends.</p>
-          <button className="btn btn--primary" onClick={() => resolveAction()}>Continue</button>
-        </div>
-      </div>
-    );
-  }
-
-  // DOUBLE_LEG_CHOOSE is handled by matPickMode banner — no blocking modal needed
+  // DOUBLE_LEG_CHOOSE is handled by the mat pick banner — no modal needed
   if (type === 'DOUBLE_LEG_CHOOSE') return null;
-
-  if (type === 'CHOOSE_SIDE') {
-    const { leftPair, rightPair } = pending;
-    return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3>Both Sides Match!</h3>
-          <p>Choose which side to fire. Secondary <em>and</em> tertiary for the chosen side still both fire — you just can't do both sides.</p>
-          <div className="modal-btns">
-            <button
-              className={`btn btn--choose-side btn--choose-side--${leftPair.moveset.toLowerCase()}`}
-              onClick={() => resolveAction('left')}
-            >
-              <strong>LEFT — {leftPair.moveset}</strong>
-              {leftPair.tertiaryKey && <span className="choose-side-tert"> + {TERTIARY_LABEL[leftPair.tertiaryKey]}</span>}
-            </button>
-            <button
-              className={`btn btn--choose-side btn--choose-side--${rightPair.moveset.toLowerCase()}`}
-              onClick={() => resolveAction('right')}
-            >
-              <strong>RIGHT — {rightPair.moveset}</strong>
-              {rightPair.tertiaryKey && <span className="choose-side-tert"> + {TERTIARY_LABEL[rightPair.tertiaryKey]}</span>}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Generic TERTIARY — auto-resolves or transitions to a specific UI on click
-  if (type === 'TERTIARY') {
-    const { action } = pending;
-    return (
-      <div className="modal-overlay">
-        <div className="modal">
-          <h3 className="tertiary-title">{TERTIARY_LABEL[action]}</h3>
-          <p className="tertiary-desc">{TERTIARY_DESC[action]}</p>
-          <button className="btn btn--primary" onClick={() => resolveAction()}>Resolve</button>
-        </div>
-      </div>
-    );
-  }
 
   return null;
 }
@@ -952,7 +691,7 @@ function ScoreHeader({ G }) {
 // ── Game board ────────────────────────────────────────────────────────────────
 
 function GameBoard({ G, actions }) {
-  const { selectCard, selectDiscardCard, confirmWithAction, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, confirmPlacement, cancelPlacement, flipPlacedCard } = actions;
+  const { selectCard, selectDiscardCard, confirmWithAction, toggleFlip, playToMat, takePoint, resolveAction, pickMatCard, confirmTurn, cancelPlacement, flipPlacedCard } = actions;
   const { phase, matPickMode, message, currentPlayer, players, flags, mat } = G;
   const [dragState, setDragState] = useState(null);
   const matRef = useRef(null);
@@ -1141,7 +880,6 @@ function GameBoard({ G, actions }) {
         G={G}
         matRef={matRef}
         onPick={pickMatCard}
-        onConfirm={confirmPlacement}
         onCancel={cancelPlacement}
         onFlip={flipPlacedCard}
         onPlacedMouseDown={handlePlacedCardMouseDown}
