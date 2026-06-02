@@ -2,62 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useGame } from './hooks/useGame';
 import { MOVESET_COLOR, TERTIARY_LABEL, TERTIARY_DESC, effectiveZones } from './data/deck';
+import { detectPairs } from './utils/pairDetection';
 import './App.css';
 
-// ── Placement preview (pure — mirrors detectPair from useGame.js) ─────────────
-
-// Mirror of isZoneCovered in useGame.js — keep in sync.
-function isZoneCoveredPreview(position, ownerUid, mat) {
-  // A zone is covered only if a card placed AFTER it (higher uid = on top) has a zone there
-  return mat.some(entry =>
-    entry.uid > ownerUid &&
-    (entry.zoneOffset === position || entry.zoneOffset + 1 === position)
-  );
-}
-
-// Mirror of checkPairOneSide in useGame.js — keep in sync.
-function checkPairPreview(placed, adjacentCard, placedIsRight, isOverlap = false) {
-  const placedZones = effectiveZones(placed.card, placed.flipped);
-  const adjZones    = effectiveZones(adjacentCard.card, adjacentCard.flipped);
-  const placedZone  = placedIsRight ? placedZones.left  : placedZones.right;
-  const adjZone     = isOverlap
-    ? (placedIsRight ? adjZones.left  : adjZones.right)
-    : (placedIsRight ? adjZones.right : adjZones.left);
-  if (placedZone.m !== adjZone.m) return null;
-  let tertiaryKey = null;
-  if (placedIsRight) {
-    if (adjZone.tR && placedZone.tL && adjZone.tR === placedZone.tL) tertiaryKey = adjZone.tR;
-  } else {
-    if (placedZone.tR && adjZone.tL && placedZone.tR === adjZone.tL) tertiaryKey = placedZone.tR;
-  }
-  return { moveset: placedZone.m, tertiaryKey, pairedZone: placedZone };
-}
-
-// Returns { left: pair|null, right: pair|null } or null (no matches).
-// Mirrors detectPair in useGame.js — keep in sync.
-function previewPlacement(placed, newMat, placement) {
-  if (typeof placement === 'number' || (placement && typeof placement === 'object')) {
-    const idx = typeof placement === 'number' ? placement : placement.insertIdx;
-    const leftNeighbor  = idx > 0                 ? newMat[idx - 1] : null;
-    const rightNeighbor = idx < newMat.length - 1 ? newMat[idx + 1] : null;
-    const leftIsOverlap  = !!leftNeighbor  && isZoneCoveredPreview(leftNeighbor.zoneOffset + 1, leftNeighbor.uid,  newMat);
-    const rightIsOverlap = !!rightNeighbor && isZoneCoveredPreview(rightNeighbor.zoneOffset,    rightNeighbor.uid, newMat);
-    const left  = leftNeighbor  ? checkPairPreview(placed, leftNeighbor,  true,  leftIsOverlap)  : null;
-    const right = rightNeighbor ? checkPairPreview(placed, rightNeighbor, false, rightIsOverlap) : null;
-    return (left || right) ? { left, right } : null;
-  }
-  if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
-    const isOverlap = placement === 'left';
-    const pair = checkPairPreview(placed, newMat[1], false, isOverlap);
-    return pair ? { left: null, right: pair } : null;
-  }
-  if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
-    const isOverlap = placement === 'right';
-    const pair = checkPairPreview(placed, newMat[newMat.length - 2], true, isOverlap);
-    return pair ? { left: pair, right: null } : null;
-  }
-  return null;
-}
 
 
 // ── Card image ────────────────────────────────────────────────────────────────
@@ -368,9 +315,11 @@ function Mat({ G, matRef, onPick, onCancel, onFlip, onPlacedMouseDown, onConfirm
   const placedEntry = mat.find(e => e.uid === placedUid);
 
   // Live preview — suppressed during ring-out warning (no pair fires on ring out)
-  const preview = (phase === 'placed' && pendingPlacement && !pendingPlacement.ringOut)
-    ? previewPlacement(pendingPlacement.placed, pendingPlacement.newMat, pendingPlacement.placement)
+  const rawPreview = (phase === 'placed' && pendingPlacement && !pendingPlacement.ringOut)
+    ? detectPairs(pendingPlacement.placed, pendingPlacement.newMat, pendingPlacement.placement)
     : null;
+  // detectPairs always returns { left, right } — treat as null when both sides are null
+  const preview = (rawPreview?.left || rawPreview?.right) ? rawPreview : null;
 
   return (
     <div className="mat-area">

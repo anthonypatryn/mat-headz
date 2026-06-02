@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { DECK, shuffle, effectiveZones, hasPinZone } from '../data/deck';
+import { isZoneCovered, checkPairOneSide, detectPairs } from '../utils/pairDetection';
 
 let uidSeed = 0;
 const uid = () => ++uidSeed;
@@ -326,7 +327,7 @@ export function useGame() {
       };
 
       // Pair detection — on-top checks both sides, end placements check one
-      const { left: leftPair, right: rightPair } = detectPair(placed, newMat, placement);
+      const { left: leftPair, right: rightPair } = detectPairs(placed, newMat, placement);
       const hasBoth = leftPair && rightPair;
       const singlePair = leftPair || rightPair;
 
@@ -648,66 +649,9 @@ export function useGame() {
     });
   }
 
-  // ─── PAIR DETECTION ───────────────────────────────────────────────────────
-  // NOTE: Claude repeatedly confused adjacent (+2 span) with overlap (+1 span).
-  // 4 zones with 2 cards = adjacent. 3 zones with 2 cards = overlap. READ THE SPAN.
-
-  // Returns true if any card OTHER than ownerUid has a zone at the given mat position.
-  function isZoneCovered(position, ownerUid, mat) {
-    // A zone is covered only if a card placed AFTER it (higher uid = on top) has a zone there
-    return mat.some(entry =>
-      entry.uid > ownerUid &&
-      (entry.zoneOffset === position || entry.zoneOffset + 1 === position)
-    );
-  }
-
-  // Check one directional pair between placed card and an adjacent card.
-  // placedIsRight=true:  placed is RIGHT card → placedZone=placed.left,  adjZone=adjacent.right (or .left if isOverlap)
-  // placedIsRight=false: placed is LEFT card  → placedZone=placed.right, adjZone=adjacent.left  (or .right if isOverlap)
-  // isOverlap: neighbor's facing zone is covered — use their exposed zone instead.
-  function checkPairOneSide(placed, adjacentCard, placedIsRight, isOverlap = false) {
-    const placedZones = effectiveZones(placed.card, placed.flipped);
-    const adjZones    = effectiveZones(adjacentCard.card, adjacentCard.flipped);
-    const placedZone  = placedIsRight ? placedZones.left  : placedZones.right;
-    const adjZone     = isOverlap
-      ? (placedIsRight ? adjZones.left  : adjZones.right)
-      : (placedIsRight ? adjZones.right : adjZones.left);
-    if (placedZone.m !== adjZone.m) return null;
-    let tertiaryKey = null;
-    if (placedIsRight) {
-      if (adjZone.tR && placedZone.tL && adjZone.tR === placedZone.tL) tertiaryKey = adjZone.tR;
-    } else {
-      if (placedZone.tR && adjZone.tL && placedZone.tR === adjZone.tL) tertiaryKey = placedZone.tR;
-    }
-    return { moveset: placedZone.m, tertiaryKey, pairedZone: placedZone };
-  }
-
-  // Returns { left: pair|null, right: pair|null }.
-  function detectPair(placed, newMat, placement) {
-    // On-top or straddle: check both neighbors.
-    if (typeof placement === 'number' || (placement && typeof placement === 'object')) {
-      const idx = typeof placement === 'number' ? placement : placement.insertIdx;
-      const leftNeighbor  = idx > 0                 ? newMat[idx - 1] : null;
-      const rightNeighbor = idx < newMat.length - 1 ? newMat[idx + 1] : null;
-      const leftIsOverlap  = !!leftNeighbor  && isZoneCovered(leftNeighbor.zoneOffset + 1, leftNeighbor.uid,  newMat);
-      const rightIsOverlap = !!rightNeighbor && isZoneCovered(rightNeighbor.zoneOffset,    rightNeighbor.uid, newMat);
-      return {
-        left:  leftNeighbor  ? checkPairOneSide(placed, leftNeighbor,  true,  leftIsOverlap)  : null,
-        right: rightNeighbor ? checkPairOneSide(placed, rightNeighbor, false, rightIsOverlap) : null,
-      };
-    }
-    // Overlap end placements: the covered zone is dead.
-    // Check the new card's on-top zone vs the existing card's EXPOSED (same-side) zone.
-    if ((placement === 'left' || placement === 'adjacent-left') && newMat.length >= 2) {
-      const isOverlap = placement === 'left';
-      return { left: null, right: checkPairOneSide(placed, newMat[1], false, isOverlap) };
-    }
-    if ((placement === 'right' || placement === 'adjacent-right') && newMat.length >= 2) {
-      const isOverlap = placement === 'right';
-      return { left: checkPairOneSide(placed, newMat[newMat.length - 2], true, isOverlap), right: null };
-    }
-    return { left: null, right: null };
-  }
+  // ─── PAIR DETECTION — imported from src/utils/pairDetection.js ──────────────
+  // isZoneCovered, checkPairOneSide, detectPairs are shared with App.jsx preview.
+  // Edit pairDetection.js — do NOT duplicate logic here.
 
   // ─── ACTION RESOLUTION ────────────────────────────────────────────────────
 
