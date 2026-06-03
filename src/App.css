@@ -343,11 +343,9 @@
   transition: background 0.4s ease;
 }
 
-/* Player mat backgrounds */
-.game-board--p1 .mat-area { background-image: url('/mat-p1.jpg'); }
-.game-board--p2 .mat-area { background-image: url('/mat-p2.jpg'); }
-.game-board--p1 { --player-bg2: #06061f; }
-.game-board--p2 { --player-bg2: #1f0606; }
+/* Temporary testing: different bg per player */
+.game-board--p1 { --player-bg: #2a0808; --player-bg2: #1f0606; }
+.game-board--p2 { --player-bg: #08082a; --player-bg2: #06061f; }
 
 .game-msg {
   background: #1a1a10;
@@ -381,10 +379,8 @@
 /* ── Mat area ─────────────────────────────────────────────────────────────── */
 
 .mat-area {
-  padding: 80px 12px;
+  padding: 12px;
   background: var(--player-bg, #0a1a0a);
-  background-size: cover;
-  background-position: center;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -416,7 +412,6 @@
   overflow-y: visible;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  outline: 24px solid rgba(255, 255, 255, 0.9);
 }
 
 .mat-scroll-wrap::-webkit-scrollbar { height: 4px; }
@@ -481,7 +476,7 @@
   width: 1600px;
   height: 286px;
   background: var(--bg3);
-  border-radius: 0;
+  border-radius: 8px;
   overflow: visible;
 }
 
