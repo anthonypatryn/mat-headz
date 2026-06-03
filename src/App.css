@@ -411,11 +411,7 @@
 /* ── Mat scroll wrapper ───────────────────────────────────────────────────── */
 
 .mat-scroll-wrap {
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: visible;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  overflow: visible;
 }
 
 .mat-scroll-wrap::-webkit-scrollbar { height: 4px; }
@@ -482,8 +478,7 @@
   background: var(--bg3);
   border-radius: 0;
   overflow: visible;
-  outline: 8px solid rgba(255, 255, 255, 0.9);
-  outline-offset: 6px;
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.9);
 }
 
 /* Faint zone divider lines */
