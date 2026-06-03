@@ -763,11 +763,21 @@ function GameBoard({ G, actions }) {
     const matEl = matRef.current;
     if (matEl) {
       const rect = matEl.getBoundingClientRect();
-      if (
-        e.clientX >= rect.left && e.clientX <= rect.right &&
-        e.clientY >= rect.top && e.clientY <= rect.bottom
-      ) {
-        const localX = e.clientX - rect.left;
+      const scrollWrap = document.querySelector('.mat-scroll-wrap');
+      const wrapRect = scrollWrap ? scrollWrap.getBoundingClientRect() : rect;
+
+      // Check if drop is within the mat OR just outside the scroll wrapper edges (for ring-out)
+      const inMatY = e.clientY >= rect.top && e.clientY <= rect.bottom;
+      const inMatX = e.clientX >= rect.left && e.clientX <= rect.right;
+      const beyondRight = e.clientX > wrapRect.right && inMatY;
+      const beyondLeft  = e.clientX < wrapRect.left  && inMatY;
+
+      if ((inMatX && inMatY) || beyondRight || beyondLeft) {
+        // Map drops beyond the scroll wrapper edges to the extreme mat positions
+        let localX;
+        if (beyondRight) localX = rect.width; // treat as dropped at far right of mat
+        else if (beyondLeft) localX = 0;       // treat as dropped at far left of mat
+        else localX = e.clientX - rect.left;
         // Card is 400px (2 zones) wide, centered on cursor
         const targetZone = Math.max(0, Math.min(7, Math.round(localX / 200) - 1));
 
