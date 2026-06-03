@@ -343,9 +343,11 @@
   transition: background 0.4s ease;
 }
 
-/* Temporary testing: different bg per player */
-.game-board--p1 { --player-bg: #2a0808; --player-bg2: #1f0606; }
-.game-board--p2 { --player-bg: #08082a; --player-bg2: #06061f; }
+/* Player mat backgrounds */
+.game-board--p1 .mat-area { background-image: url('/mat-p1.jpg'); }
+.game-board--p2 .mat-area { background-image: url('/mat-p2.jpg'); }
+.game-board--p1 { --player-bg2: #06061f; }
+.game-board--p2 { --player-bg2: #1f0606; }
 
 .game-msg {
   background: #1a1a10;
@@ -381,6 +383,8 @@
 .mat-area {
   padding: 12px;
   background: var(--player-bg, #0a1a0a);
+  background-size: cover;
+  background-position: center;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -478,6 +482,8 @@
   background: var(--bg3);
   border-radius: 8px;
   overflow: visible;
+  outline: 6px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 4px;
 }
 
 /* Faint zone divider lines */
