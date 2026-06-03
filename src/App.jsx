@@ -764,13 +764,25 @@ function GameBoard({ G, actions }) {
     const matEl = matRef.current;
     if (matEl) {
       const rect = matEl.getBoundingClientRect();
-      if (
-        e.clientX >= rect.left && e.clientX <= rect.right &&
-        e.clientY >= rect.top && e.clientY <= rect.bottom
-      ) {
-        const localX = e.clientX - rect.left;
-        // Card is 400px (2 zones) wide, centered on cursor
-        const targetZone = Math.max(0, Math.min(7, Math.round(localX / 200) - 1));
+      const scrollWrap = document.querySelector('.mat-scroll-wrap');
+      const wrapRect = scrollWrap ? scrollWrap.getBoundingClientRect() : rect;
+
+      const inMatY = e.clientY >= rect.top && e.clientY <= rect.bottom;
+      const inMatX = e.clientX >= rect.left && e.clientX <= rect.right;
+      const beyondRight = e.clientX > wrapRect.right && inMatY;
+      const beyondLeft  = e.clientX < wrapRect.left  && inMatY;
+
+      if ((inMatX && inMatY) || beyondRight || beyondLeft) {
+        // Map drops outside the visible scroll area to the mat extremes for ring-out
+        let localX;
+        if (beyondRight) localX = rect.width;
+        else if (beyondLeft) localX = 0;
+        else localX = e.clientX - rect.left;
+
+        // Use raw (unclamped) zone for adjacency checks so negative values
+        // can match leftZone-2 (left ring-out) and values > 7 match rightZone+2
+        const rawZone = Math.round(localX / 200) - 1;
+        const targetZone = Math.max(0, Math.min(7, rawZone));
 
         let placement = null;
         if (mat.length === 0) {
@@ -779,10 +791,10 @@ function GameBoard({ G, actions }) {
           const leftZone  = mat[0].zoneOffset ?? 3;
           const rightZone = mat[mat.length - 1].zoneOffset ?? 3;
 
-          if (targetZone === leftZone - 1)       placement = 'left';
-          else if (targetZone === leftZone - 2)  placement = 'adjacent-left';
-          else if (targetZone === rightZone + 1) placement = 'right';
-          else if (targetZone === rightZone + 2) placement = 'adjacent-right';
+          if (rawZone === leftZone - 1)       placement = 'left';
+          else if (rawZone === leftZone - 2)  placement = 'adjacent-left';
+          else if (rawZone === rightZone + 1) placement = 'right';
+          else if (rawZone === rightZone + 2) placement = 'adjacent-right';
           else {
             // Exact on-top match
             const idx = mat.findIndex(e2 => e2.zoneOffset === targetZone);

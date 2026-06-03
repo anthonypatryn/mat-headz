@@ -234,9 +234,10 @@ export function useGame() {
 
       const newSpan = (matSpan || 0) + spanIncrease;
 
-      // Ring out — card would push mat beyond 8 half-card zones.
-      // Warn the player first; they can confirm or go back.
-      if (newSpan > 8) {
+      // Ring out — card extends beyond the physical mat (positions 0-7).
+      // A card at zoneOffset covers positions zoneOffset and zoneOffset+1.
+      // Out of bounds: zoneOffset < 0 (left) or zoneOffset > 6 (right, would need position 8).
+      if (placedZoneOffset < 0 || placedZoneOffset > 6) {
         return {
           ...prev,
           players: newPlayers,
