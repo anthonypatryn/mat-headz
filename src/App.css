@@ -381,7 +381,7 @@
 /* ── Mat area ─────────────────────────────────────────────────────────────── */
 
 .mat-area {
-  padding: 12px;
+  padding: 40px 12px;
   background: var(--player-bg, #0a1a0a);
   background-size: cover;
   background-position: center;
@@ -480,10 +480,10 @@
   width: 1600px;
   height: 286px;
   background: var(--bg3);
-  border-radius: 8px;
+  border-radius: 0;
   overflow: visible;
-  outline: 6px solid rgba(255, 255, 255, 0.85);
-  outline-offset: 4px;
+  outline: 8px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 6px;
 }
 
 /* Faint zone divider lines */

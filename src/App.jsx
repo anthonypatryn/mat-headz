@@ -323,7 +323,6 @@ function Mat({ G, matRef, onPick, onCancel, onFlip, onPlacedMouseDown, onConfirm
 
   return (
     <div className="mat-area">
-      <div className="mat-label">THE MAT — {span} / 8 zones</div>
       <div className="mat-scroll-wrap">
         <div className="mat-grid">
           <div className="mat-cards-container" ref={matRef}>
