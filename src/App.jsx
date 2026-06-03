@@ -764,7 +764,7 @@ function GameBoard({ G, actions }) {
     if (matEl) {
       const rect = matEl.getBoundingClientRect();
       if (
-        e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientX >= rect.left - 60 && e.clientX <= rect.right + 60 &&
         e.clientY >= rect.top && e.clientY <= rect.bottom
       ) {
         const localX = e.clientX - rect.left;
